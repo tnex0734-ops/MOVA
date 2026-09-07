@@ -12,6 +12,7 @@ interface DropCardProps {
 
 export const DropCard: React.FC<DropCardProps> = ({ drop, onOpenDrop }) => {
   const isLive = drop.status === 'active';
+  const isUpcoming = drop.status === 'upcoming';
 
   return (
     <div className="relative w-full rounded-bento bg-white border border-black/[0.06] shadow-bento hover:shadow-bento-hover transition-all duration-200 p-6 sm:p-7 flex flex-col justify-between overflow-hidden">
@@ -22,14 +23,22 @@ export const DropCard: React.FC<DropCardProps> = ({ drop, onOpenDrop }) => {
       <div>
         {/* Drop Tag & Countdown */}
         <div className="flex items-center justify-between gap-2 mb-4">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-mova-orange-light/80 text-mova-ocean border border-mova-orange/20 text-xs font-bold shadow-xs">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs font-bold shadow-xs ${
+            isLive 
+              ? 'bg-mova-orange-light/80 text-mova-ocean border border-mova-orange/20'
+              : isUpcoming
+              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+              : 'bg-black/5 text-mova-muted border border-black/10'
+          }`}>
             <Icon3D name="spark" size="xs" />
-            <span>{isLive ? '● LIVE 5-MIN DROP' : drop.status.toUpperCase()}</span>
+            <span>{isLive ? '● LIVE 5-MIN DROP' : isUpcoming ? '⏳ UPCOMING DROP' : '✓ ARCHIVED DROP'}</span>
           </span>
 
-          <span className="font-mono-tabular text-xs font-extrabold px-3 py-1 rounded-pill bg-mova-ocean text-white flex items-center gap-1.5 shadow-sm">
+          <span className={`font-mono-tabular text-xs font-extrabold px-3 py-1 rounded-pill flex items-center gap-1.5 shadow-sm ${
+            isLive ? 'bg-mova-ocean text-white' : 'bg-black/5 text-mova-nearblack'
+          }`}>
             <Icon3D name="clock" size="xs" />
-            <span>{formatSecondsToTimer(drop.remainingSeconds)}</span>
+            <span>{isLive ? formatSecondsToTimer(drop.remainingSeconds) : isUpcoming ? 'Opens Soon' : 'Concluded'}</span>
           </span>
         </div>
 
@@ -49,7 +58,7 @@ export const DropCard: React.FC<DropCardProps> = ({ drop, onOpenDrop }) => {
                 key={idx}
                 src={img}
                 alt="Drop thumbnail"
-                className="w-full h-16 rounded-xl object-cover border border-black/[0.06] shadow-xs"
+                className="w-full h-16 rounded-xl object-cover border border-black/[0.06] shadow-xs hover:scale-105 transition-transform"
               />
             ))}
           </div>
@@ -73,7 +82,6 @@ export const DropCard: React.FC<DropCardProps> = ({ drop, onOpenDrop }) => {
           variant={isLive ? 'primary' : 'secondary'}
           size="md"
           onClick={() => onOpenDrop(drop)}
-          disabled={drop.status === 'completed'}
           className="w-full flex items-center justify-center gap-2 font-bold shadow-sm py-3"
         >
           {isLive ? (
@@ -82,8 +90,10 @@ export const DropCard: React.FC<DropCardProps> = ({ drop, onOpenDrop }) => {
               <span>DROP PERSPECTIVE NOW</span>
               <ArrowRight className="w-4 h-4" />
             </>
+          ) : isUpcoming ? (
+            <span>View Upcoming Prompt</span>
           ) : (
-            <span>View Completed Drop</span>
+            <span>Explore Completed Drop Gallery</span>
           )}
         </Button>
       </div>

@@ -23,11 +23,17 @@ export const MomentCard: React.FC<MomentCardProps> = ({
 }) => {
   const vibe = CANONICAL_VIBES.find((v) => v.id === moment.vibeId);
 
+  const isClosed = moment.status === 'closed' || moment.remainingMinutes <= 0;
+  const isFull = moment.status === 'full' || moment.isFull || (moment.maxParticipants ? moment.participantCount >= moment.maxParticipants : false);
+  const isCancelled = moment.status === 'cancelled' || moment.isCancelled;
+  const isUnavailable = moment.status === 'unavailable';
+  const isClosingSoon = !isClosed && (moment.status === 'closing' || moment.remainingMinutes <= 15);
+
   return (
     <article
       className={`relative w-full rounded-bento bg-white border border-black/[0.06] shadow-bento hover:shadow-bento-hover transition-all duration-200 overflow-hidden flex flex-col justify-between ${
         isCompact ? 'p-5' : 'p-6 sm:p-7'
-      }`}
+      } ${isClosed || isCancelled ? 'opacity-90 bg-black/[0.01]' : ''}`}
     >
       {/* Top Metadata Row */}
       <div>
@@ -41,10 +47,35 @@ export const MomentCard: React.FC<MomentCardProps> = ({
             <span>{vibe?.label}</span>
           </span>
 
-          <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-mova-ocean/5 text-mova-ocean flex items-center gap-1.5">
-            <Icon3D name="clock" size="xs" />
-            <span>{formatTimeRemaining(moment.remainingMinutes)}</span>
-          </span>
+          {/* Dynamic Status / Time Pill */}
+          {isCancelled ? (
+            <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-red-50 text-red-600 border border-red-200 flex items-center gap-1.5">
+              <span>Cancelled</span>
+            </span>
+          ) : isUnavailable ? (
+            <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-gray-100 text-gray-600 flex items-center gap-1.5">
+              <span>Unavailable</span>
+            </span>
+          ) : isClosed ? (
+            <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-black/5 text-mova-muted flex items-center gap-1.5">
+              <span>Ended</span>
+            </span>
+          ) : isFull ? (
+            <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span>Full ({moment.participantCount}{moment.maxParticipants ? `/${moment.maxParticipants}` : ''})</span>
+            </span>
+          ) : isClosingSoon ? (
+            <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span>Closing in {moment.remainingMinutes}m</span>
+            </span>
+          ) : (
+            <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-mova-ocean/5 text-mova-ocean flex items-center gap-1.5">
+              <Icon3D name="clock" size="xs" />
+              <span>{formatTimeRemaining(moment.remainingMinutes)}</span>
+            </span>
+          )}
         </div>
 
         {/* Photo Visual (if available) */}
@@ -53,12 +84,21 @@ export const MomentCard: React.FC<MomentCardProps> = ({
             <img
               src={moment.photoUrl}
               alt={moment.title}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
+                isClosed || isCancelled ? 'grayscale-[40%]' : ''
+              }`}
             />
             {moment.distanceMeters && (
               <span className="absolute bottom-2.5 left-2.5 bg-black/70 backdrop-blur-xs text-white text-[10px] font-mono-tabular font-bold px-3 py-1 rounded-full shadow-sm">
                 📍 {moment.distanceMeters}m away · {moment.walkingMinutes || 2}m walk
               </span>
+            )}
+            {isClosed && (
+              <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center">
+                <span className="px-3 py-1 rounded-full bg-black/80 text-white text-xs font-bold tracking-wide uppercase">
+                  Archived Memory
+                </span>
+              </div>
             )}
           </div>
         )}
@@ -83,7 +123,7 @@ export const MomentCard: React.FC<MomentCardProps> = ({
 
         {/* Description */}
         <p className="text-xs text-mova-muted line-clamp-2 leading-relaxed mb-5">
-          {moment.description}
+          {isCancelled ? 'This moment was cancelled by the host.' : moment.description}
         </p>
       </div>
 
@@ -116,29 +156,84 @@ export const MomentCard: React.FC<MomentCardProps> = ({
           )}
         </div>
 
-        {/* Action Buttons: Pass vs Join */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Action Buttons based on status */}
+        {isClosed ? (
           <Button
             variant="secondary"
             size="md"
-            onClick={() => onPass(moment)}
-            aria-label={`Pass ${moment.title}`}
-            className="flex items-center justify-center gap-1.5 text-xs text-mova-muted hover:text-mova-nearblack min-h-[42px]"
+            onClick={() => onOpenThread(moment)}
+            aria-label={`View archive of ${moment.title}`}
+            className="w-full flex items-center justify-center gap-1.5 text-xs font-bold min-h-[42px]"
           >
-            <X className="w-3.5 h-3.5" />
-            <span>Pass</span>
-          </Button>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => onJoin(moment)}
-            aria-label={`Join ${moment.title}`}
-            className="flex items-center justify-center gap-1.5 text-xs font-bold shadow-sm min-h-[42px]"
-          >
-            <span>I'm In</span>
+            <span>View Memory Thread</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Button>
-        </div>
+        ) : isCancelled || isUnavailable ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => onPass(moment)}
+              aria-label={`Dismiss ${moment.title}`}
+              className="w-full flex items-center justify-center gap-1.5 text-xs text-mova-muted min-h-[42px]"
+            >
+              <span>Dismiss</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="md"
+              disabled
+              className="w-full flex items-center justify-center gap-1.5 text-xs opacity-50 cursor-not-allowed min-h-[42px]"
+            >
+              <span>Unavailable</span>
+            </Button>
+          </div>
+        ) : isFull ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => onPass(moment)}
+              aria-label={`Pass ${moment.title}`}
+              className="flex items-center justify-center gap-1.5 text-xs text-mova-muted min-h-[42px]"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Pass</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => onOpenThread(moment)}
+              aria-label={`Capacity reached for ${moment.title}. Observe thread`}
+              className="flex items-center justify-center gap-1.5 text-xs font-bold border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100 min-h-[42px]"
+            >
+              <span>Observe Thread</span>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => onPass(moment)}
+              aria-label={`Pass ${moment.title}`}
+              className="flex items-center justify-center gap-1.5 text-xs text-mova-muted hover:text-mova-nearblack min-h-[42px]"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Pass</span>
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => onJoin(moment)}
+              aria-label={`Join ${moment.title}`}
+              className="flex items-center justify-center gap-1.5 text-xs font-bold shadow-sm min-h-[42px]"
+            >
+              <span>I'm In</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
     </article>
   );

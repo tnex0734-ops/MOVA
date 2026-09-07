@@ -42,11 +42,16 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
   const [voiceSeconds, setVoiceSeconds] = useState(0);
   const [voiceRecorded, setVoiceRecorded] = useState(false);
   const [sketchDataUrl, setSketchDataUrl] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
+
+  const isExpired = moment ? (moment.status === 'closed' || moment.remainingMinutes <= 0) : false;
+  const isFull = moment ? (moment.status === 'full' || moment.isFull || (moment.maxParticipants ? moment.participantCount >= moment.maxParticipants : false)) : false;
+  const isCancelled = moment ? (moment.status === 'cancelled' || moment.isCancelled) : false;
 
   const drawerRef = useFocusTrap<HTMLDivElement>({
     isOpen,
@@ -62,6 +67,7 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
       setVoiceSeconds(0);
       setVoiceRecorded(false);
       setSketchDataUrl('');
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
@@ -148,6 +154,9 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
   const vibe = CANONICAL_VIBES.find((v) => v.id === moment.vibeId);
 
   const handleConfirmArrival = () => {
+    if (isSubmitting || isExpired || isCancelled) return;
+    setIsSubmitting(true);
+
     let finalContent = contributionText.trim();
     if (!finalContent) {
       if (selectedContributionType === 'photo') finalContent = 'Live photo perspective';
@@ -156,13 +165,17 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
       else finalContent = 'Arrived at the moment!';
     }
 
-    onConfirm(moment, {
-      type: selectedContributionType,
-      content: finalContent,
-      mediaUrl: photoUrl || (selectedContributionType === 'photo' ? SAMPLE_PERSPECTIVE_PHOTOS[0] : undefined),
-      sketchDataUrl: sketchDataUrl || undefined,
-    });
-    onClose();
+    try {
+      onConfirm(moment, {
+        type: selectedContributionType,
+        content: finalContent,
+        mediaUrl: photoUrl || (selectedContributionType === 'photo' ? SAMPLE_PERSPECTIVE_PHOTOS[0] : undefined),
+        sketchDataUrl: sketchDataUrl || undefined,
+      });
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -195,10 +208,10 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
             damping: 32,
             mass: 0.85,
           }}
-          className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-t-drawer border-t border-x border-mova-ice-border shadow-drawer p-4 sm:p-6 sm:p-8 z-10 flex flex-col max-h-[88dvh] overflow-y-auto"
+          className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-t-drawer border-t border-x border-mova-ice-border shadow-drawer p-4 sm:p-6 sm:p-8 z-10 flex flex-col max-h-[90dvh] overflow-y-auto overscroll-contain"
         >
           {/* Drag Handle Bar */}
-          <div className="w-12 h-1.5 rounded-full bg-mova-border mx-auto mb-3" />
+          <div className="w-12 h-1.5 rounded-full bg-mova-border mx-auto mb-3 shrink-0" />
 
           {/* Close Button */}
           <button
@@ -212,13 +225,44 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
           {/* Header */}
           <div className="mb-4 pr-8">
             <span className="text-xs font-bold uppercase tracking-wider text-mova-ocean flex items-center gap-1.5 mb-1">
-              <span className="w-2 h-2 rounded-full bg-mova-orange animate-pulse" />
-              You're Joining
+              <span className={`w-2 h-2 rounded-full ${isExpired || isCancelled ? 'bg-red-500' : isFull ? 'bg-amber-500' : 'bg-mova-orange animate-pulse'}`} />
+              {isExpired ? 'Moment Ended' : isCancelled ? 'Moment Cancelled' : isFull ? 'Capacity Reached' : "You're Joining"}
             </span>
             <h2 id="drawer-title" className="font-crayon text-2xl sm:text-3xl font-bold text-mova-ocean leading-tight break-words">
               {moment.title}
             </h2>
           </div>
+
+          {/* Live Edge-Case Status Warnings */}
+          {isExpired && (
+            <div className="mb-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-center gap-2">
+              <span className="text-base">⏳</span>
+              <div>
+                <strong className="font-bold">This Moment has concluded.</strong>
+                <p className="text-[11px] text-amber-800">You can no longer join as an active participant, but you can explore its Living Thread memories.</p>
+              </div>
+            </div>
+          )}
+
+          {isCancelled && (
+            <div className="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-950 text-xs font-medium flex items-center gap-2">
+              <span className="text-base">🚫</span>
+              <div>
+                <strong className="font-bold">This Moment was cancelled by the host.</strong>
+                <p className="text-[11px] text-red-800">No new check-ins are being accepted.</p>
+              </div>
+            </div>
+          )}
+
+          {isFull && (
+            <div className="mb-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-center gap-2">
+              <span className="text-base">👥</span>
+              <div>
+                <strong className="font-bold">Maximum group capacity reached.</strong>
+                <p className="text-[11px] text-amber-800">New joins are paused to maintain high-quality intimate group dynamics.</p>
+              </div>
+            </div>
+          )}
 
           {/* Moment Context Box */}
           <div className="p-4 rounded-2xl bg-mova-ice-soft border border-mova-ice-border/70 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -512,17 +556,53 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
           </div>
 
           {/* Primary CTA (Sticky bottom to ensure accessible on mobile & small viewports) */}
-          <div className="sticky bottom-0 bg-white/95 backdrop-blur-md pt-3 pb-1 -mx-4 sm:-mx-6 sm:-mx-8 px-4 sm:px-6 sm:px-8 border-t border-mova-border/40 mt-2 z-20">
-            <Button
-              ref={confirmBtnRef}
-              variant="primary"
-              size="lg"
-              onClick={handleConfirmArrival}
-              className="w-full flex items-center justify-center gap-2 text-sm sm:text-base font-bold shadow-md tracking-wide py-3.5"
-            >
-              <Check className="w-5 h-5" />
-              <span>CONFIRM ARRIVAL & ENTER THREAD</span>
-            </Button>
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-md pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] -mx-4 sm:-mx-6 sm:-mx-8 px-4 sm:px-6 sm:px-8 border-t border-mova-border/40 mt-2 z-20">
+            {isExpired || isCancelled ? (
+              <Button
+                ref={confirmBtnRef}
+                variant="secondary"
+                size="lg"
+                onClick={onClose}
+                className="w-full flex items-center justify-center gap-2 text-sm sm:text-base font-bold tracking-wide py-3.5"
+              >
+                <span>CLOSE DRAWER</span>
+              </Button>
+            ) : isFull ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={onClose}
+                  className="w-full flex items-center justify-center text-sm font-bold py-3.5"
+                >
+                  <span>CANCEL</span>
+                </Button>
+                <Button
+                  ref={confirmBtnRef}
+                  variant="primary"
+                  size="lg"
+                  onClick={handleConfirmArrival}
+                  disabled={isSubmitting}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-bold tracking-wide py-3.5"
+                >
+                  <span>OBSERVE THREAD</span>
+                </Button>
+              </div>
+            ) : (
+              <Button
+                ref={confirmBtnRef}
+                variant="primary"
+                size="lg"
+                disabled={isSubmitting}
+                onClick={handleConfirmArrival}
+                className={`w-full flex items-center justify-center gap-2 text-sm sm:text-base font-bold shadow-md tracking-wide py-3.5 ${
+                  isSubmitting ? 'opacity-70 cursor-wait' : ''
+                }`}
+              >
+                <Check className="w-5 h-5" />
+                <span>{isSubmitting ? 'JOINING MOMENT...' : 'CONFIRM ARRIVAL & ENTER THREAD'}</span>
+              </Button>
+            )}
           </div>
 
         </motion.div>

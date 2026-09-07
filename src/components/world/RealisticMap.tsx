@@ -133,8 +133,8 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
             </div>
 
             <!-- Callout Title Label -->
-            <div class="mt-1 bg-white border-2 border-mova-ocean/70 px-2.5 py-0.5 rounded-full shadow-md text-[11px] font-extrabold text-mova-ocean whitespace-nowrap flex items-center gap-1">
-              <span>${moment.title.length > 20 ? moment.title.substring(0, 18) + '...' : moment.title}</span>
+            <div class="mt-1 bg-white border-2 border-mova-ocean/70 px-2.5 py-0.5 rounded-full shadow-md text-[11px] text-mova-ocean whitespace-nowrap flex items-center gap-1">
+              <span class="font-crayon text-xs font-bold">${moment.title.length > 20 ? moment.title.substring(0, 18) + '...' : moment.title}</span>
               <span class="text-[10px] text-mova-muted font-bold font-mono-tabular">· ${moment.walkingMinutes || 2}m</span>
             </div>
           </div>
@@ -257,7 +257,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
                   {selectedPinMoment.distanceMeters || 180}m away · {selectedPinMoment.walkingMinutes || 2} min walk
                 </span>
               </div>
-              <h4 className="font-bold text-sm text-mova-ocean truncate mt-0.5">
+              <h4 className="font-crayon text-base font-bold text-mova-ocean truncate mt-0.5">
                 {selectedPinMoment.title}
               </h4>
               <p className="text-xs text-mova-muted truncate">

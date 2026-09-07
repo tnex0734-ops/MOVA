@@ -114,7 +114,49 @@ export const DropModal: React.FC<DropModalProps> = ({
           At this exact moment, campus is dropping their live perspective together.
         </p>
 
-        {isSubmitted ? (
+        {drop.status === 'completed' || drop.remainingSeconds <= 0 ? (
+          <div className="flex flex-col gap-4">
+            <div className="p-4 rounded-2xl bg-mova-ice-soft/60 border border-mova-ice-border">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-mova-muted block mb-1">
+                Synchronized Capsule Gallery
+              </span>
+              <p className="text-xs text-mova-ocean font-medium">
+                This 5-minute drop has concluded. Below are the synchronous perspectives contributed by the campus collective.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {(drop.previewImages.length > 0 ? drop.previewImages : SAMPLE_DROP_PHOTOS.map(s => s.url)).map((img, idx) => (
+                <div key={idx} className="relative rounded-2xl overflow-hidden border border-mova-ice-border shadow-xs group">
+                  <img src={img} alt={`Perspective ${idx + 1}`} className="w-full h-28 object-cover group-hover:scale-105 transition-transform" />
+                  <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-bold backdrop-blur-xs">
+                    POV #{idx + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t border-mova-border flex items-center justify-between">
+              <span className="text-xs text-mova-muted font-medium">{drop.contributionsCount} total contributions archived</span>
+              <Button variant="secondary" size="sm" onClick={onClose}>
+                Close Gallery
+              </Button>
+            </div>
+          </div>
+        ) : drop.status === 'upcoming' ? (
+          <div className="p-8 text-center flex flex-col items-center justify-center rounded-2xl bg-mova-ice-soft/40 border border-mova-ice-border">
+            <div className="w-12 h-12 rounded-2xl bg-white border border-mova-ice-border flex items-center justify-center shadow-xs mb-3 text-mova-ocean">
+              <Icon3D name="clock" size="md" />
+            </div>
+            <h3 className="font-crayon text-2xl font-bold text-mova-ocean mb-1">Coming Up Soon</h3>
+            <p className="text-xs text-mova-muted max-w-sm mb-5">
+              When this prompt opens, everyone on campus will have a strict 5-minute countdown window to drop their raw perspective simultaneously.
+            </p>
+            <Button variant="secondary" size="md" onClick={onClose}>
+              Got It
+            </Button>
+          </div>
+        ) : isSubmitted ? (
           <div className="p-8 text-center flex flex-col items-center justify-center">
             <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3">
               <Check className="w-8 h-8" />

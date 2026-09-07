@@ -22,7 +22,15 @@ export interface Vibe {
   activeCount: number;
 }
 
-export type MomentStatus = 'starting' | 'active' | 'evolving' | 'closing' | 'closed';
+export type MomentStatus = 
+  | 'starting' 
+  | 'active' 
+  | 'evolving' 
+  | 'closing' 
+  | 'closed'
+  | 'full'
+  | 'cancelled'
+  | 'unavailable';
 
 export type ActivityLevel = 'dormant' | 'active' | 'hot' | 'closing';
 
@@ -40,6 +48,7 @@ export interface Moment {
   vibeId: VibeId;
   location: string;
   participantCount: number;
+  maxParticipants?: number;
   remainingMinutes: number;
   status: MomentStatus;
   activityLevel: ActivityLevel;
@@ -56,6 +65,8 @@ export interface Moment {
   dropId?: string;
   isJoined?: boolean;
   isPassed?: boolean;
+  isFull?: boolean;
+  isCancelled?: boolean;
   createdAt: string;
 }
 
@@ -119,3 +130,36 @@ export interface Memory {
   }>;
   highlightQuotes: string[];
 }
+
+export type CampusArea = 
+  | 'all'
+  | 'central_quad'
+  | 'library'
+  | 'canteen'
+  | 'sports_complex'
+  | 'arts_studio';
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  avatar: string;
+  bio: string;
+  campusArea: string;
+  currentVibeId: VibeId | 'all';
+  customVibeText?: string;
+  joinedMomentsCount: number;
+  contributionsCount: number;
+  sparksStartedCount: number;
+}
+
+export interface ActivityNotification {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  type: 'join' | 'drop_start' | 'moment_closed' | 'branch_created';
+  momentId?: string;
+  dropId?: string;
+  read: boolean;
+}
+

@@ -74,7 +74,7 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({ memory, onOpenMemory }) 
         )}
 
         {/* Scrapbook Note */}
-        <p className="text-xs text-mova-ocean/80 leading-relaxed italic mb-4">
+        <p className="font-crayon text-base text-mova-ocean/90 leading-relaxed italic mb-4">
           "{memory.scrapbookNote}"
         </p>
       </div>

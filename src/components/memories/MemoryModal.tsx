@@ -90,7 +90,7 @@ export const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, memory, onClos
           <span className="text-[10px] font-bold uppercase tracking-wider text-mova-muted block mb-1">
             Scrapbook Memory Note
           </span>
-          <p className="text-xs text-mova-ocean/90 leading-relaxed italic">
+          <p className="font-crayon text-base text-mova-ocean leading-relaxed italic">
             "{memory.scrapbookNote}"
           </p>
         </div>

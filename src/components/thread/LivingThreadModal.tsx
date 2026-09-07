@@ -27,6 +27,9 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
   const [contributionType, setContributionType] = useState<ContributionType>('text');
   const [photoUrl, setPhotoUrl] = useState<string>('');
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const modalRef = useFocusTrap<HTMLDivElement>({
@@ -53,27 +56,37 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
     e.preventDefault();
     if (!newContent.trim() && !photoUrl) return;
 
-    onAddContribution(moment.id, {
-      momentId: moment.id,
-      parentId: selectedParentId,
-      branchName: branchName.trim() || undefined,
-      type: contributionType,
-      content: sanitizeText(newContent) || (photoUrl ? 'Photo Perspective' : ''),
-      mediaUrl: contributionType === 'photo' ? (photoUrl || 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80') : undefined,
-      author: {
-        id: 'user-arun',
-        name: 'Arun K.',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-        joinedAt: 'Just now',
-      },
-      likesCount: 1,
-    });
+    setSubmitError(null);
+    setIsPublishing(true);
 
-    setNewContent('');
-    setPhotoUrl('');
-    setBranchName('');
-    setSelectedParentId(null);
-    setIsComposerOpen(false);
+    try {
+      onAddContribution(moment.id, {
+        momentId: moment.id,
+        parentId: selectedParentId,
+        branchName: branchName.trim() || undefined,
+        type: contributionType,
+        content: sanitizeText(newContent) || (photoUrl ? 'Photo Perspective' : ''),
+        mediaUrl: contributionType === 'photo' ? (photoUrl || 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80') : undefined,
+        author: {
+          id: 'user-arun',
+          name: 'Arun K.',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+          joinedAt: 'Just now',
+        },
+        likesCount: 1,
+      });
+
+      setNewContent('');
+      setPhotoUrl('');
+      setBranchName('');
+      setSelectedParentId(null);
+      setIsPreviewing(false);
+      setIsComposerOpen(false);
+    } catch (err: any) {
+      setSubmitError('Failed to publish contribution. Tap Retry to post again.');
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   // Group contributions into root and branches
@@ -127,7 +140,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
         </div>
 
         {/* Thread Tree Content Area */}
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <p className="text-xs text-mova-muted">
               Moments branch as people participate. Click <strong>Branch Out</strong> to spin off an activity.
@@ -158,7 +171,10 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setContributionType(type)}
+                      onClick={() => {
+                        setContributionType(type);
+                        setIsPreviewing(false);
+                      }}
                       className={`px-2.5 py-1 text-xs font-semibold rounded-lg capitalize transition-all ${
                         contributionType === type
                           ? 'bg-mova-ocean text-white'
@@ -171,73 +187,169 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                 </div>
               </div>
 
-              <input
-                type="text"
-                placeholder="Optional Branch Title (e.g. Tea Run, Guitar Song)..."
-                value={branchName}
-                onChange={(e) => setBranchName(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none"
-              />
-
-              {contributionType === 'photo' && (
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handlePhotoUpload}
-                  />
-                  {photoUrl ? (
-                    <div className="relative h-28 rounded-xl overflow-hidden border border-mova-ice-border">
-                      <img src={photoUrl} alt="Upload" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setPhotoUrl('')}
-                        className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-3 rounded-xl border border-dashed border-mova-ice-border bg-white text-center cursor-pointer text-xs font-bold text-mova-ocean hover:bg-mova-ice-soft"
-                    >
-                      + Attach Snapshot from Device
-                    </div>
-                  )}
+              {submitError && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center justify-between">
+                  <span>{submitError}</span>
+                  <button
+                    type="button"
+                    onClick={handlePostContribution}
+                    className="underline font-bold hover:text-red-900"
+                  >
+                    Retry
+                  </button>
                 </div>
               )}
 
-              <textarea
-                rows={2}
-                placeholder="Share your live view, message, or sound note..."
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none"
-                required
-              />
+              {/* Preview Toggle View */}
+              {isPreviewing ? (
+                <div className="p-3.5 rounded-xl bg-white border border-mova-ice-border flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-mova-muted">
+                      Live Contribution Preview
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsPreviewing(false)}
+                      className="text-xs text-mova-ocean font-bold hover:underline"
+                    >
+                      Edit Content
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <img
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
+                      alt="You"
+                      className="w-5 h-5 rounded-full object-cover"
+                    />
+                    <span className="text-xs font-bold text-mova-ocean">You (Arun K.)</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-mova-ice-soft text-mova-ocean uppercase">
+                      {branchName || contributionType}
+                    </span>
+                  </div>
+                  <p className="text-xs text-mova-nearblack leading-relaxed">
+                    {newContent || '(Empty content)'}
+                  </p>
+                  {photoUrl && (
+                    <img
+                      src={photoUrl}
+                      alt="Preview"
+                      className="rounded-xl w-full max-h-40 object-cover border border-mova-ice-border"
+                    />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Optional Branch Title (e.g. Tea Run, Guitar Song)..."
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none"
+                  />
 
-              <div className="flex items-center justify-end gap-2">
-                <Button type="button" variant="ghost" size="sm" onClick={() => setIsComposerOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm" className="font-semibold">
-                  Publish to Branch
-                </Button>
+                  {contributionType === 'photo' && (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handlePhotoUpload}
+                      />
+                      {photoUrl ? (
+                        <div className="relative h-28 rounded-xl overflow-hidden border border-mova-ice-border">
+                          <img src={photoUrl} alt="Upload" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setPhotoUrl('')}
+                            className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-3 rounded-xl border border-dashed border-mova-ice-border bg-white text-center cursor-pointer text-xs font-bold text-mova-ocean hover:bg-mova-ice-soft"
+                        >
+                          + Attach Snapshot from Device
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <textarea
+                    rows={2}
+                    placeholder="Share your live view, message, or sound note..."
+                    value={newContent}
+                    onChange={(e) => setNewContent(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none"
+                    required={contributionType !== 'photo' || !photoUrl}
+                  />
+                </>
+              )}
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewing(!isPreviewing)}
+                  disabled={!newContent && !photoUrl}
+                  className="text-xs font-bold text-mova-ocean hover:underline disabled:opacity-40"
+                >
+                  {isPreviewing ? 'Exit Preview' : '👁️ Preview Card'}
+                </button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsComposerOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={isPublishing || (!newContent.trim() && !photoUrl)}
+                    className="font-semibold"
+                  >
+                    {isPublishing ? 'Publishing...' : 'Publish to Branch'}
+                  </Button>
+                </div>
               </div>
             </form>
           )}
 
           {/* Living Tree Visualization */}
           {rootContributions.length === 0 ? (
-            <div className="p-8 text-center flex flex-col items-center justify-center rounded-2xl bg-mova-ice-soft/50 border border-mova-ice-border">
-              <GitBranch className="w-8 h-8 text-mova-ice mb-2" />
-              <p className="font-crayon text-xl text-mova-nearblack">You're early.</p>
-              <p className="text-xs text-mova-muted mb-4">Be the first to share a live perspective or branch out an activity.</p>
+            <div className="p-8 text-center flex flex-col items-center justify-center rounded-2xl bg-mova-ice-soft/40 border border-mova-ice-border">
+              <div className="w-12 h-12 rounded-2xl bg-white border border-mova-ice-border flex items-center justify-center shadow-xs mb-3 text-mova-ocean">
+                <GitBranch className="w-6 h-6" />
+              </div>
+              <p className="font-crayon text-2xl text-mova-ocean font-bold mb-1">You're early. Start the story.</p>
+              <p className="text-xs text-mova-muted max-w-sm mb-4">
+                Be the first to share a live perspective, coordinate where to sit, or branch out a micro-activity.
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center mb-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewContent("Just arrived! Table near the sunlit window.");
+                    setIsComposerOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-pill bg-white border border-mova-ice-border text-[11px] font-semibold text-mova-ocean hover:border-mova-ocean transition-all"
+                >
+                  📍 "Just arrived! Table near window"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContributionType('photo');
+                    setIsComposerOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-pill bg-white border border-mova-ice-border text-[11px] font-semibold text-mova-ocean hover:border-mova-ocean transition-all"
+                >
+                  📸 Post a snapshot
+                </button>
+              </div>
               <Button variant="primary" size="sm" onClick={() => setIsComposerOpen(true)}>
-                Add Something
+                Start First Contribution
               </Button>
             </div>
           ) : (
@@ -350,6 +462,20 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                               className="rounded-xl w-full max-h-40 object-cover border border-mova-ice-border"
                             />
                           )}
+
+                          <div className="pt-1.5 flex items-center justify-between text-[11px]">
+                            <button
+                              onClick={() => {
+                                setSelectedParentId(child.id);
+                                setIsComposerOpen(true);
+                              }}
+                              className="font-semibold text-mova-ocean hover:underline flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-mova-ocean rounded"
+                            >
+                              <GitBranch className="w-3 h-3 text-mova-ocean" />
+                              <span>Sub-branch</span>
+                            </button>
+                            <span className="text-[10px] text-mova-muted">Level 2 branch</span>
+                          </div>
                         </div>
                       ))}
                     </div>

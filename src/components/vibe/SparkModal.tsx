@@ -12,6 +12,7 @@ interface SparkModalProps {
   onClose: () => void;
   onCreateMoment: (moment: Moment) => void;
   defaultVibeId?: VibeId | 'all';
+  initialTitle?: string;
 }
 
 const SAMPLE_PHOTOS = [
@@ -26,31 +27,55 @@ export const SparkModal: React.FC<SparkModalProps> = ({
   onClose,
   onCreateMoment,
   defaultVibeId = 'spontaneous',
+  initialTitle = '',
 }) => {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialTitle);
   const [location, setLocation] = useState('');
   const [vibeId, setVibeId] = useState<VibeId>(
     defaultVibeId === 'all' ? 'spontaneous' : defaultVibeId
   );
   const [duration, setDuration] = useState<number>(30);
+  const [maxCapacity, setMaxCapacity] = useState<number | undefined>(undefined);
   const [photoUrl, setPhotoUrl] = useState<string>('');
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const hasDraft = title.trim().length > 0 || location.trim().length > 0 || photoUrl.length > 0;
+
+  const handleRequestClose = () => {
+    if (hasDraft) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    setShowDiscardConfirm(false);
+    setTitle('');
+    setLocation('');
+    setPhotoUrl('');
+    setError(null);
+    onClose();
+  };
+
   const modalRef = useFocusTrap<HTMLDivElement>({
     isOpen,
-    onClose,
+    onClose: handleRequestClose,
     initialFocusRef: titleInputRef,
   });
 
   useEffect(() => {
     if (isOpen) {
       setError(null);
+      setShowDiscardConfirm(false);
+      if (initialTitle) setTitle(initialTitle);
     }
-  }, [isOpen]);
+  }, [isOpen, initialTitle]);
 
   if (!isOpen) return null;
 
@@ -103,6 +128,7 @@ export const SparkModal: React.FC<SparkModalProps> = ({
       vibeId,
       location: sanitizeText(location),
       participantCount: 1,
+      maxParticipants: maxCapacity,
       remainingMinutes: duration,
       status: 'active',
       activityLevel: 'active',
@@ -159,12 +185,43 @@ export const SparkModal: React.FC<SparkModalProps> = ({
         
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleRequestClose}
           aria-label="Close spark modal"
           className="absolute top-6 right-6 w-9 h-9 rounded-full bg-black/[0.03] flex items-center justify-center text-mova-muted hover:text-mova-nearblack hover:bg-black/[0.06] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
+
+        {/* Unsaved Changes Confirmation Dialog Overlay */}
+        {showDiscardConfirm && (
+          <div className="absolute inset-0 z-30 bg-white/95 backdrop-blur-sm p-6 sm:p-8 flex flex-col items-center justify-center text-center animate-fadeIn">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mb-3">
+              <X className="w-6 h-6" />
+            </div>
+            <h3 className="font-crayon text-2xl font-bold text-mova-ocean mb-1">Discard this Moment?</h3>
+            <p className="text-xs text-mova-muted max-w-xs mb-6">
+              You have an unfinished moment draft. If you close now, your title, spot, and photo will not be saved.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setShowDiscardConfirm(false)}
+                className="text-xs font-semibold"
+              >
+                Keep Editing
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleConfirmDiscard}
+                className="text-xs font-bold bg-red-600 hover:bg-red-700 border-red-600"
+              >
+                Discard Draft
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Modal Header */}
         <div className="flex items-center gap-3.5 mb-6">
@@ -172,10 +229,10 @@ export const SparkModal: React.FC<SparkModalProps> = ({
             <Icon3D name="spark" size="md" />
           </div>
           <div>
-            <h2 id="spark-modal-title" className="text-xl sm:text-2xl font-bold text-mova-ocean">
+            <h2 id="spark-modal-title" className="font-crayon text-2xl sm:text-3xl font-bold text-mova-ocean leading-tight">
               Spark a Moment
             </h2>
-            <p className="font-crayon text-sm text-mova-ocean font-semibold">
+            <p className="font-crayon text-sm sm:text-base text-mova-ocean/85 font-semibold">
               Don't ask who to follow. Start what's happening.
             </p>
           </div>
@@ -205,6 +262,12 @@ export const SparkModal: React.FC<SparkModalProps> = ({
               maxLength={80}
               required
             />
+            <div className="flex items-center justify-between text-[11px] text-mova-muted mt-1 px-1">
+              <span>Short, action-focused activity title</span>
+              <span className={title.length > 70 ? 'text-mova-orange font-bold' : ''}>
+                {title.length}/80
+              </span>
+            </div>
           </div>
 
           {/* Picture Upload Area */}
@@ -378,9 +441,40 @@ export const SparkModal: React.FC<SparkModalProps> = ({
             </div>
           </div>
 
+          {/* Group Capacity Setting */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-mova-muted mb-1.5 flex items-center justify-between">
+              <span>Group Size / Max Capacity</span>
+              <span className="text-[10px] text-mova-muted font-normal">
+                {maxCapacity ? `Max ${maxCapacity} people` : 'Open / No limit'}
+              </span>
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'Open', val: undefined },
+                { label: '4 (Squad)', val: 4 },
+                { label: '8 (Group)', val: 8 },
+                { label: '16 (Party)', val: 16 },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => setMaxCapacity(opt.val)}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                    maxCapacity === opt.val
+                      ? 'bg-mova-ocean text-white shadow-xs'
+                      : 'bg-mova-ice-soft text-mova-ocean border border-mova-ice-border hover:bg-mova-ice'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Submit Action */}
           <div className="pt-2 mt-2 border-t border-mova-border flex items-center justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            <Button type="button" variant="ghost" size="sm" onClick={handleRequestClose}>
               Cancel
             </Button>
             <Button type="submit" variant="primary" size="md" className="font-semibold shadow-md">
