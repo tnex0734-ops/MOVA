@@ -1,0 +1,87 @@
+/* MOVA Design System Tokens - Original Palette
+   Maroon (#8B1E3F), Rose (#C9A0A0), Gold (#D4AF37), Ivory (#F5E6D3)
+*/
+:root {
+  /* Canvas & Base */
+  --mova-canvas: #FFFFFF;
+  --mova-white: #FFFFFF;
+
+  /* Primary Brand: Maroon */
+  --mova-maroon: #8B1E3F;
+  --mova-maroon-hover: #731833;
+  --mova-maroon-active: #5E1229;
+  --mova-maroon-light: #F6E9ED;
+
+  /* Surface Accent: Rose */
+  --mova-rose: #C9A0A0;
+  --mova-rose-light: #F9F4F4;
+
+  /* Attention & Activity: Gold */
+  --mova-gold: #D4AF37;
+  --mova-gold-light: #F5E8BA;
+  --mova-gold-subtle: #FFFDF5;
+
+  /* Warm Neutral Surfaces: Ivory */
+  --mova-ivory: #F5E6D3;
+  --mova-ivory-card: #FDFBF7;
+  --mova-ivory-border: #EAD8C0;
+
+  /* Typography & Neutrals */
+  --mova-text-primary: #2B2024;
+  --mova-text-secondary: #66555B;
+  --mova-text-inverse: #FFFFFF;
+  --mova-nearblack: #2B2024;
+  --mova-muted: #66555B;
+
+  /* Action Semantics */
+  --mova-primary: #8B1E3F;
+  --mova-primary-hover: #731833;
+  --mova-primary-active: #5E1229;
+  --mova-primary-text: #FFFFFF;
+
+  --mova-accent: #D4AF37;
+  --mova-accent-hover: #BF9C2E;
+  --mova-accent-text: #2B2024;
+
+  /* Feedback Semantics */
+  --mova-success: #23633F;
+  --mova-success-surface: #E6F3EA;
+  --mova-error: #A92D2D;
+  --mova-error-surface: #FBEAEA;
+  --mova-disabled: #7A858D;
+  --mova-disabled-surface: #EEF3F6;
+
+  /* Borders & Dividers */
+  --mova-border: rgba(43, 32, 36, 0.09);
+  --mova-border-strong: rgba(43, 32, 36, 0.16);
+  --mova-border-subtle: rgba(43, 32, 36, 0.05);
+
+  /* Tactile Shadows */
+  --mova-shadow-soft: 0 4px 20px -2px rgba(43, 32, 36, 0.05), 0 2px 6px -1px rgba(43, 32, 36, 0.02);
+  --mova-shadow-hover: 0 12px 32px -4px rgba(43, 32, 36, 0.09), 0 4px 12px -2px rgba(43, 32, 36, 0.04);
+  --mova-shadow-drawer: 0 -20px 48px -8px rgba(43, 32, 36, 0.16);
+
+  /* Radii */
+  --mova-radius-bento: 28px;
+  --mova-radius-card: 20px;
+  --mova-radius-control: 16px;
+  --mova-radius-pill: 9999px;
+
+  /* Emil Kowalski Animation Easings */
+  --ease-emil-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-emil-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-emil-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Forward-Compatibility Aliases (ocean names → original values) */
+  --mova-ocean: var(--mova-maroon);
+  --mova-ocean-hover: var(--mova-maroon-hover);
+  --mova-ocean-light: var(--mova-maroon-light);
+  --mova-ice: var(--mova-rose);
+  --mova-ice-soft: var(--mova-rose-light);
+  --mova-ice-card: var(--mova-ivory-card);
+  --mova-ice-border: var(--mova-ivory-border);
+  --mova-orange: var(--mova-gold);
+  --mova-orange-hover: var(--mova-accent-hover);
+  --mova-orange-light: var(--mova-gold-light);
+  --mova-orange-subtle: var(--mova-gold-subtle);
+}

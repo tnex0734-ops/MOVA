@@ -1,0 +1,19 @@
+/* MOVA Design System Tokens - PRE-MIGRATION BACKUP (Maroon/Rose/Gold/Ivory) */
+:root {
+  --mova-canvas: #FFFFFF;
+  --mova-maroon: #8B1E3F;
+  --mova-maroon-hover: #731833;
+  --mova-maroon-light: #F6E9ED;
+  --mova-rose: #C9A0A0;
+  --mova-rose-light: #F9F4F4;
+  --mova-nearblack: #2B2024;
+  --mova-muted: #66555B;
+  --mova-gold: #D4AF37;
+  --mova-gold-light: #F5E8BA;
+  --mova-gold-subtle: #FFFDF5;
+  --mova-ivory: #F5E6D3;
+  --mova-ivory-card: #FDFBF7;
+  --mova-ivory-border: #EAD8C0;
+  --mova-border: rgba(43, 32, 36, 0.09);
+  --mova-border-subtle: rgba(43, 32, 36, 0.05);
+}
