@@ -1,28 +1,20 @@
 import React, { useState, useEffect } from 'react';
-
-// Centralized Accessible Screen Reader Announcer
-let globalAnnounce: ((message: string) => void) | null = null;
-
-export function announce(message: string) {
-  if (globalAnnounce) {
-    globalAnnounce(message);
-  }
-}
+import { setGlobalAnnounceHandler } from '../../lib/announcer';
 
 export const LiveAnnouncer: React.FC = () => {
   const [announcement, setAnnouncement] = useState<string>('');
 
   useEffect(() => {
-    globalAnnounce = (msg: string) => {
+    setGlobalAnnounceHandler((msg: string) => {
       // Clear first to ensure subsequent identical messages re-trigger aria-live
       setAnnouncement('');
       setTimeout(() => {
         setAnnouncement(msg);
       }, 50);
-    };
+    });
 
     return () => {
-      globalAnnounce = null;
+      setGlobalAnnounceHandler(null);
     };
   }, []);
 

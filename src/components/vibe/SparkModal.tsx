@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, MapPin, Clock, Camera, Upload, Trash2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { VibeId, Moment } from '../../types/mova';
@@ -69,13 +69,6 @@ export const SparkModal: React.FC<SparkModalProps> = ({
     initialFocusRef: titleInputRef,
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      setError(null);
-      setShowDiscardConfirm(false);
-      if (initialTitle) setTitle(initialTitle);
-    }
-  }, [isOpen, initialTitle]);
 
   if (!isOpen) return null;
 

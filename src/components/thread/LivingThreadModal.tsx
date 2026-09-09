@@ -81,8 +81,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
       setBranchName('');
       setSelectedParentId(null);
       setIsPreviewing(false);
-      setIsComposerOpen(false);
-    } catch (err: any) {
+    } catch {
       setSubmitError('Failed to publish contribution. Tap Retry to post again.');
     } finally {
       setIsPublishing(false);

@@ -25,9 +25,23 @@ describe('useKeyboardNav Hook Accessibility Guardrails', () => {
     expect(onJoin).not.toHaveBeenCalled();
   });
 
+  it('triggers onPass on "h" key when enabled', () => {
+    renderHook(() => useKeyboardNav({ onPass, onJoin, onEscape }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+    expect(onPass).toHaveBeenCalledTimes(1);
+    expect(onJoin).not.toHaveBeenCalled();
+  });
+
   it('triggers onJoin on ArrowRight when enabled', () => {
     renderHook(() => useKeyboardNav({ onPass, onJoin, onEscape }));
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(onJoin).toHaveBeenCalledTimes(1);
+    expect(onPass).not.toHaveBeenCalled();
+  });
+
+  it('triggers onJoin on "l" key when enabled', () => {
+    renderHook(() => useKeyboardNav({ onPass, onJoin, onEscape }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l' }));
     expect(onJoin).toHaveBeenCalledTimes(1);
     expect(onPass).not.toHaveBeenCalled();
   });

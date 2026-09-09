@@ -31,12 +31,12 @@ export function useKeyboardNav({ onPass, onJoin, onEscape, disabled = false }: K
       // If a modal/dialog is currently active, do not allow background card pass/join
       const hasOpenDialog = Boolean(document.querySelector('[role="dialog"]'));
 
-      if (e.key === 'ArrowLeft') {
+      if (e.key === 'ArrowLeft' || e.key === 'h' || e.key === 'H') {
         if (!hasOpenDialog) {
           e.preventDefault();
           onPass?.();
         }
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'L') {
         if (!hasOpenDialog) {
           e.preventDefault();
           onJoin?.();

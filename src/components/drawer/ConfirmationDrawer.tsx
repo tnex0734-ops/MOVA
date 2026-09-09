@@ -59,27 +59,17 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
     initialFocusRef: confirmBtnRef,
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      setContributionText('');
-      setPhotoUrl('');
-      setIsRecordingVoice(false);
-      setVoiceSeconds(0);
-      setVoiceRecorded(false);
-      setSketchDataUrl('');
-      setIsSubmitting(false);
-    }
-  }, [isOpen]);
-
   // Voice recording timer simulation
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isRecordingVoice) {
       interval = setInterval(() => {
         setVoiceSeconds((prev) => prev + 1);
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isRecordingVoice]);
 
   // Handle Photo upload

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Moment, Drop, ActivityNotification } from '../src/types/mova';
+import { Drop, ActivityNotification } from '../src/types/mova';
 import { INITIAL_MOMENTS } from '../src/data/mockMoments';
-import { INITIAL_DROPS } from '../src/data/mockDrops';
 
 describe('MOVA Edge Cases & Status Transitions', () => {
   it('identifies closing soon moments correctly (<=15 min remaining)', () => {

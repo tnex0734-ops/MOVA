@@ -16,7 +16,8 @@ import { DropCard } from './components/drops/DropCard';
 import { DropModal } from './components/drops/DropModal';
 import { MemoryCard } from './components/memories/MemoryCard';
 import { MemoryModal } from './components/memories/MemoryModal';
-import { ToastProvider, useToast } from './components/common/Toast';
+import { ToastProvider } from './components/common/Toast';
+import { useToast } from './hooks/useToast';
 import { OnboardingModal } from './components/onboarding/OnboardingModal';
 import { IdentityDrawer } from './components/identity/IdentityDrawer';
 import { ActivityDrawer } from './components/identity/ActivityDrawer';
@@ -27,7 +28,8 @@ import { useKeyboardNav } from './hooks/useKeyboardNav';
 import { Layers, HelpCircle, Search, WifiOff, X, Sparkles, MapPin, Clock } from 'lucide-react';
 import { Button } from './components/common/Button';
 import { Icon3D } from './components/common/Icon3D';
-import { LiveAnnouncer, announce } from './components/common/LiveAnnouncer';
+import { LiveAnnouncer } from './components/common/LiveAnnouncer';
+import { announce } from './lib/announcer';
 import movaLogo from './assets/MOVALOGO.png';
 
 const INITIAL_PROFILE: UserProfile = {
@@ -122,7 +124,7 @@ function MOVAApp() {
   const { showToast } = useToast();
 
   // Centralized Clock & Audio Feedback
-  const { now } = useClock();
+  const { now: _now } = useClock();
   const { isEnabled: isSoundEnabled, toggleSound, playClick, playJoin, playPass, playDropAlert } = useAudioFeedback();
 
   // Online / Offline listener
@@ -145,19 +147,22 @@ function MOVAApp() {
 
   // Central timer tick updates drop remaining seconds
   useEffect(() => {
-    setDrops((prevDrops) =>
-      prevDrops.map((d) => {
-        if (d.status === 'active' && d.remainingSeconds > 0) {
-          const nextSec = d.remainingSeconds - 1;
-          if (nextSec === 0) {
-            return { ...d, remainingSeconds: 0, status: 'completed' };
+    const timer = setInterval(() => {
+      setDrops((prevDrops) =>
+        prevDrops.map((d) => {
+          if (d.status === 'active' && d.remainingSeconds > 0) {
+            const nextSec = d.remainingSeconds - 1;
+            if (nextSec === 0) {
+              return { ...d, remainingSeconds: 0, status: 'completed' };
+            }
+            return { ...d, remainingSeconds: nextSec };
           }
-          return { ...d, remainingSeconds: nextSec };
-        }
-        return d;
-      })
-    );
-  }, [now]);
+          return d;
+        })
+      );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Vibe, Search, and Filter filtered moments
   const filteredMoments = useMemo(() => {
@@ -1166,6 +1171,7 @@ function MOVAApp() {
 
       {/* 4. Interactive Drawers and Modals */}
       <ConfirmationDrawer
+        key={selectedMomentForDrawer?.id ?? 'none'}
         isOpen={Boolean(selectedMomentForDrawer)}
         moment={selectedMomentForDrawer}
         onClose={() => setSelectedMomentForDrawer(null)}
@@ -1194,6 +1200,7 @@ function MOVAApp() {
       />
 
       <SparkModal
+        key={isSparkOpen ? `spark-${sparkInitialTitle}` : 'spark-closed'}
         isOpen={isSparkOpen}
         onClose={() => setIsSparkOpen(false)}
         onCreateMoment={handleCreateSpark}

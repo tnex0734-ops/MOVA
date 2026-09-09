@@ -6,7 +6,7 @@ import { Users, ArrowRight, X, RotateCcw } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatTimeRemaining } from '../../lib/utils';
 import { Icon3D } from '../common/Icon3D';
-import { announce } from '../common/LiveAnnouncer';
+import { announce } from '../../lib/announcer';
 
 interface SwipeStackProps {
   moments: Moment[];
