@@ -13,6 +13,7 @@ interface RealisticMapProps {
   activeMomentId?: string | null;
   onSelectMoment: (moment: Moment) => void;
   onQuickJoin: (moment: Moment) => void;
+  onOpenThread?: (moment: Moment) => void;
   onSwitchToNetwork?: () => void;
 }
 
@@ -33,6 +34,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
   activeMomentId,
   onSelectMoment,
   onQuickJoin,
+  onOpenThread,
   onSwitchToNetwork,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +46,16 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
   const filteredMoments = moments.filter(
     (m) => selectedVibe === 'all' || m.vibeId === selectedVibe
   );
+
+  // Keep selectedPinMoment in sync with fresh moment data (isJoined, participantCount)
+  useEffect(() => {
+    if (selectedPinMoment) {
+      const fresh = filteredMoments.find((m) => m.id === selectedPinMoment.id);
+      if (fresh) {
+        setSelectedPinMoment(fresh);
+      }
+    }
+  }, [filteredMoments]);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -59,11 +71,17 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
       attributionControl: false,
     });
 
-    // CartoDB Positron Light Tiles (architectural, paper-toned aesthetic)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
+    // Crisp, reliable open campus basemap (no watermark, full native high-zoom support)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      subdomains: 'abc',
       maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
+
+    // Clicking map background dismisses selected pin preview
+    map.on('click', () => {
+      setSelectedPinMoment(null);
+    });
 
     // Add Layer Group for dynamic moment pins
     const markersGroup = L.layerGroup().addTo(map);
@@ -73,21 +91,43 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
     const userIcon = L.divIcon({
       className: 'custom-map-marker',
       html: `
-        <div class="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
-          <div class="absolute w-12 h-12 rounded-full bg-mova-orange/30 animate-radar"></div>
-          <div class="w-6 h-6 rounded-full bg-white border-2 border-mova-ocean shadow-md flex items-center justify-center">
-            <div class="w-2.5 h-2.5 rounded-full bg-mova-ocean"></div>
+        <div class="relative flex flex-col items-center justify-center cursor-pointer group" role="button" tabindex="0" aria-label="Your location at Library Steps. Click to recenter.">
+          <div class="relative flex items-center justify-center w-7 h-7">
+            <div class="absolute w-12 h-12 rounded-full bg-mova-orange/30 animate-radar pointer-events-none"></div>
+            <div class="w-6 h-6 rounded-full bg-white border-2 border-mova-ocean shadow-md flex items-center justify-center group-hover:scale-110 transition-transform duration-150">
+              <div class="w-2.5 h-2.5 rounded-full bg-mova-ocean"></div>
+            </div>
           </div>
-          <div class="absolute top-7 bg-mova-ocean/95 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm">
+          <div class="mt-1 bg-mova-ocean/95 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm group-hover:bg-mova-orange group-hover:text-mova-ocean transition-colors duration-150">
             You (Library Steps)
           </div>
         </div>
       `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
+      iconSize: [140, 56],
+      iconAnchor: [70, 14],
     });
 
-    L.marker(USER_COORDINATES, { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+    const userMarker = L.marker(USER_COORDINATES, { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+    const userEl = userMarker.getElement();
+    if (userEl) {
+      L.DomEvent.disableClickPropagation(userEl);
+      L.DomEvent.disableScrollPropagation(userEl);
+      userEl.style.cursor = 'pointer';
+      userEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        map.flyTo(USER_COORDINATES, 17, { duration: 0.8 });
+      });
+      userEl.addEventListener('keydown', (ke: KeyboardEvent) => {
+        if (ke.key === 'Enter' || ke.key === ' ') {
+          ke.preventDefault();
+          map.flyTo(USER_COORDINATES, 17, { duration: 0.8 });
+        }
+      });
+    }
+
+    userMarker.on('click', () => {
+      map.flyTo(USER_COORDINATES, 17, { duration: 0.8 });
+    });
 
     mapInstanceRef.current = map;
 
@@ -121,11 +161,11 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
       const customIcon = L.divIcon({
         className: 'custom-map-marker',
         html: `
-          <div class="group relative flex flex-col items-center cursor-pointer transition-transform duration-200 ${
-            isSelected ? 'scale-125 z-50' : 'hover:scale-115'
-          }">
+          <div class="group relative flex flex-col items-center cursor-pointer select-none ${
+            isSelected ? 'scale-125 z-50' : ''
+          }" role="button" tabindex="0" aria-label="${moment.title}">
             <!-- 3D Icon Pin Badge -->
-            <div class="w-12 h-12 rounded-full bg-white/95 backdrop-blur-sm border-2 ${ringColor} shadow-bento flex items-center justify-center transition-all p-1.5">
+            <div class="w-12 h-12 rounded-full bg-white/95 backdrop-blur-sm border-2 ${ringColor} shadow-bento flex items-center justify-center p-1.5 group-hover:scale-110 transition-transform duration-150">
               <img src="${iconUrl}" alt="${vibe?.label || ''}" class="w-8 h-8 object-contain pointer-events-none drop-shadow-xs" />
               <div class="absolute -top-1 -right-1 bg-mova-ocean text-white font-mono-tabular font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
                 ${moment.participantCount}
@@ -133,28 +173,62 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
             </div>
 
             <!-- Callout Title Label -->
-            <div class="mt-1 bg-white border-2 border-mova-ocean/70 px-2.5 py-0.5 rounded-full shadow-md text-[11px] text-mova-ocean whitespace-nowrap flex items-center gap-1">
+            <div class="mt-1 bg-white border-2 border-mova-ocean/70 px-2.5 py-0.5 rounded-full shadow-md text-[11px] text-mova-ocean whitespace-nowrap flex items-center gap-1 group-hover:bg-mova-ocean group-hover:text-white transition-colors duration-150">
               <span class="font-crayon text-xs font-bold">${moment.title.length > 20 ? moment.title.substring(0, 18) + '...' : moment.title}</span>
-              <span class="text-[10px] text-mova-muted font-bold font-mono-tabular">· ${moment.walkingMinutes || 2}m</span>
+              <span class="text-[10px] text-mova-muted group-hover:text-white/80 font-bold font-mono-tabular">· ${moment.walkingMinutes || 2}m</span>
             </div>
           </div>
         `,
-        iconSize: [48, 70],
-        iconAnchor: [24, 35],
+        iconSize: [220, 84],
+        iconAnchor: [110, 24],
       });
 
-      const marker = L.marker([moment.geo.lat, moment.geo.lng], { icon: customIcon });
-
-      marker.on('click', () => {
+      const handleMomentSelect = (e?: any) => {
+        if (e) {
+          if (typeof e.stopPropagation === 'function') e.stopPropagation();
+          if (e.originalEvent && typeof e.originalEvent.stopPropagation === 'function') {
+            e.originalEvent.stopPropagation();
+          }
+        }
+        // Clicking pin shows the quick preview card (Image 2) and centers the map smoothly
         setSelectedPinMoment(moment);
-        mapInstanceRef.current?.flyTo([moment.geo!.lat, moment.geo!.lng], 17.5, {
+        mapInstanceRef.current?.flyTo([moment.geo!.lat, moment.geo!.lng], 16.8, {
           duration: 0.8,
         });
+      };
+
+      const marker = L.marker([moment.geo.lat, moment.geo.lng], {
+        icon: customIcon,
+        zIndexOffset: isSelected ? 500 : 100,
+        title: moment.title,
       });
 
+      marker.on('click', handleMomentSelect);
       marker.addTo(markersGroup);
+
+      // Secure DOM level interaction and prevent map drag interception
+      const markerEl = marker.getElement();
+      if (markerEl) {
+        L.DomEvent.disableClickPropagation(markerEl);
+        L.DomEvent.disableScrollPropagation(markerEl);
+        markerEl.style.pointerEvents = 'auto';
+        markerEl.style.cursor = 'pointer';
+        markerEl.setAttribute('role', 'button');
+        markerEl.setAttribute('tabindex', '0');
+        markerEl.setAttribute(
+          'aria-label',
+          `Moment: ${moment.title}. ${moment.participantCount} people gathered, ${moment.walkingMinutes || 2} minute walk. Click to preview.`
+        );
+        markerEl.addEventListener('click', handleMomentSelect);
+        markerEl.addEventListener('keydown', (ke: KeyboardEvent) => {
+          if (ke.key === 'Enter' || ke.key === ' ') {
+            ke.preventDefault();
+            handleMomentSelect(ke);
+          }
+        });
+      }
     });
-  }, [filteredMoments, activeMomentId, selectedPinMoment, onSelectMoment]);
+  }, [filteredMoments, activeMomentId]);
 
   // Recenter to user
   const handleRecenter = () => {
@@ -165,7 +239,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
   // Jump to specific landmark
   const handleJumpToLandmark = (coords: [number, number]) => {
     if (!mapInstanceRef.current) return;
-    mapInstanceRef.current.flyTo(coords, 17.5, { duration: 0.8 });
+    mapInstanceRef.current.flyTo(coords, 17, { duration: 0.8 });
   };
 
   return (
@@ -230,12 +304,16 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
         <div className="absolute bottom-3 left-3 right-3 z-30 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl border border-mova-ice-border shadow-float flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <button
             type="button"
-            className="flex items-center gap-3 min-w-0 cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-mova-ocean rounded-xl"
+            className="flex items-center gap-3 min-w-0 cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-mova-ocean rounded-xl flex-1"
             onClick={() => {
-              onQuickJoin(selectedPinMoment);
+              if (selectedPinMoment.isJoined && onOpenThread) {
+                onOpenThread(selectedPinMoment);
+              } else {
+                onSelectMoment(selectedPinMoment);
+              }
               setSelectedPinMoment(null);
             }}
-            aria-label={`Inspect and join ${selectedPinMoment.title}`}
+            aria-label={selectedPinMoment.isJoined ? `Open living thread for ${selectedPinMoment.title}` : `Inspect and join ${selectedPinMoment.title}`}
           >
             {selectedPinMoment.photoUrl ? (
               <img
@@ -275,18 +353,37 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
             >
               Dismiss
             </button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                onQuickJoin(selectedPinMoment);
-                setSelectedPinMoment(null);
-              }}
-              className="gap-1.5 shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              I'M IN!
-            </Button>
+            {selectedPinMoment.isJoined ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  if (onOpenThread) {
+                    onOpenThread(selectedPinMoment);
+                  } else {
+                    onSelectMoment(selectedPinMoment);
+                  }
+                  setSelectedPinMoment(null);
+                }}
+                className="gap-1.5 shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>You're In · Thread</span>
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  onQuickJoin(selectedPinMoment);
+                  setSelectedPinMoment(null);
+                }}
+                className="gap-1.5 shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>I'M IN!</span>
+              </Button>
+            )}
           </div>
         </div>
       )}

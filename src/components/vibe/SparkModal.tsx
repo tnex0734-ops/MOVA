@@ -13,6 +13,11 @@ interface SparkModalProps {
   onCreateMoment: (moment: Moment) => void;
   defaultVibeId?: VibeId | 'all';
   initialTitle?: string;
+  currentUser?: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
 }
 
 const SAMPLE_PHOTOS = [
@@ -28,6 +33,7 @@ export const SparkModal: React.FC<SparkModalProps> = ({
   onCreateMoment,
   defaultVibeId = 'spontaneous',
   initialTitle = '',
+  currentUser,
 }) => {
   const [title, setTitle] = useState(initialTitle);
   const [location, setLocation] = useState('');
@@ -134,17 +140,17 @@ export const SparkModal: React.FC<SparkModalProps> = ({
       distanceMeters: Math.floor(Math.random() * 180) + 60,
       walkingMinutes: 2,
       initiator: {
-        id: 'user-arun',
-        name: 'Arun K.',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+        id: currentUser?.id || 'user-arun',
+        name: currentUser?.name || 'Arun K.',
+        avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
         role: 'Host',
         joinedAt: 'Just now',
       },
       participants: [
         {
-          id: 'user-arun',
-          name: 'Arun K.',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+          id: currentUser?.id || 'user-arun',
+          name: currentUser?.name || 'Arun K.',
+          avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
           joinedAt: 'Just now',
         },
       ],

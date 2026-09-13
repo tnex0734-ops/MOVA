@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Moment } from '../../types/mova';
 import { CANONICAL_VIBES } from '../../data/mockVibes';
@@ -37,6 +37,13 @@ export const SwipeStack: React.FC<SwipeStackProps> = ({
     return !localStorage.getItem('mova_swipe_hint_dismissed');
   });
 
+  // Reset currentIndex to 0 whenever moments list changes (vibe, search, chip)
+  const momentsKey = moments.map((m) => m.id).join(',');
+  useEffect(() => {
+    setCurrentIndex(0);
+    setLastPassedMoment(null);
+  }, [momentsKey]);
+
   const dismissGestureHint = () => {
     setShowGestureHint(false);
     localStorage.setItem('mova_swipe_hint_dismissed', 'true');
@@ -57,10 +64,15 @@ export const SwipeStack: React.FC<SwipeStackProps> = ({
     if (showGestureHint) dismissGestureHint();
 
     if (info.offset.x > threshold) {
-      // Swiped Right -> I'm In
+      // Swiped Right -> I'm In or Living Thread
       if (activeMoment) {
-        announce(`Joining ${activeMoment.title}. Opening confirmation.`);
-        onJoin(activeMoment);
+        if (activeMoment.isJoined) {
+          announce(`Opening living thread for ${activeMoment.title}.`);
+          onOpenThread(activeMoment);
+        } else {
+          announce(`Joining ${activeMoment.title}. Opening confirmation.`);
+          onJoin(activeMoment);
+        }
       }
       x.set(0);
       setCurrentIndex((prev) => prev + 1);
@@ -91,8 +103,13 @@ export const SwipeStack: React.FC<SwipeStackProps> = ({
   const handleExplicitJoin = () => {
     if (!activeMoment) return;
     if (showGestureHint) dismissGestureHint();
-    announce(`Joining ${activeMoment.title}. Opening confirmation.`);
-    onJoin(activeMoment);
+    if (activeMoment.isJoined) {
+      announce(`Opening living thread for ${activeMoment.title}.`);
+      onOpenThread(activeMoment);
+    } else {
+      announce(`Joining ${activeMoment.title}. Opening confirmation.`);
+      onJoin(activeMoment);
+    }
     x.set(0);
     setCurrentIndex((prev) => prev + 1);
   };
@@ -211,12 +228,14 @@ export const SwipeStack: React.FC<SwipeStackProps> = ({
           onDragEnd={handleDragEnd}
           className="relative w-full min-h-[470px] sm:h-[480px] rounded-bento bg-white border border-black/[0.08] shadow-bento hover:shadow-bento-hover p-5 sm:p-8 flex flex-col justify-between cursor-grab active:cursor-grabbing z-20 overflow-hidden touch-pan-y"
         >
-          {/* I'M IN! Stamp Overlay (Right Swipe) */}
+          {/* I'M IN! / YOU'RE IN! Stamp Overlay (Right Swipe) */}
           <motion.div
             style={{ opacity: joinStampOpacity }}
-            className="absolute top-8 left-8 border-4 border-mova-ocean text-mova-ocean rounded-2xl px-5 py-2 transform -rotate-12 pointer-events-none z-30 font-crayon font-bold text-3xl tracking-wider uppercase shadow-stamp bg-white/95"
+            className={`absolute top-8 left-8 border-4 rounded-2xl px-5 py-2 transform -rotate-12 pointer-events-none z-30 font-crayon font-bold text-3xl tracking-wider uppercase shadow-stamp bg-white/95 ${
+              activeMoment.isJoined ? 'border-emerald-600 text-emerald-600' : 'border-mova-ocean text-mova-ocean'
+            }`}
           >
-            I'M IN!
+            {activeMoment.isJoined ? "YOU'RE IN!" : "I'M IN!"}
           </motion.div>
 
           {/* PASS Stamp Overlay (Left Swipe) */}
@@ -318,10 +337,12 @@ export const SwipeStack: React.FC<SwipeStackProps> = ({
                 variant="primary"
                 size="md"
                 onClick={handleExplicitJoin}
-                aria-label={`Join ${activeMoment.title} (Right arrow)`}
-                className="flex items-center justify-center gap-2 font-bold shadow-md min-h-[44px]"
+                aria-label={activeMoment.isJoined ? `Open living thread for ${activeMoment.title}` : `Join ${activeMoment.title} (Right arrow)`}
+                className={`flex items-center justify-center gap-2 font-bold shadow-md min-h-[44px] ${
+                  activeMoment.isJoined ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700' : ''
+                }`}
               >
-                <span>I'm In (→)</span>
+                <span>{activeMoment.isJoined ? "You're In · Thread (→)" : "I'm In (→)"}</span>
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>

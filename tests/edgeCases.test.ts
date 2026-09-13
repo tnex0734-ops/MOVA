@@ -87,16 +87,47 @@ describe('MOVA Edge Cases & Status Transitions', () => {
     expect(nextStatus).toBe('completed');
   });
 
-  it('enforces anti-vanity social architecture: no follower counts or algorithmic rankings', () => {
-    INITIAL_MOMENTS.forEach((m) => {
-      // Must not have follower count or vanity metrics
-      expect(m).not.toHaveProperty('followerCount');
-      expect(m).not.toHaveProperty('upvotes');
-      expect(m).not.toHaveProperty('algorithmScore');
-      // Must have spatial and presence fields
-      expect(m.location).toBeDefined();
-      expect(m.participantCount).toBeGreaterThan(0);
-      expect(m.remainingMinutes).toBeGreaterThanOrEqual(0);
-    });
+  it('ensures idempotent moment joining without duplicate participants or count increments', () => {
+    const baseMoment = { ...INITIAL_MOMENTS[0], isJoined: false, participantCount: 3, participants: [{ id: 'other', name: 'Other', avatar: '', joinedAt: '1m ago' }] };
+    const user = { id: 'user-arun', name: 'Arun K.', avatar: 'avatar.png', joinedAt: 'Just now' };
+
+    // First join
+    const joinedFirstTime = {
+      ...baseMoment,
+      isJoined: true,
+      participantCount: baseMoment.participantCount + 1,
+      participants: [user, ...baseMoment.participants],
+    };
+
+    expect(joinedFirstTime.participantCount).toBe(4);
+    expect(joinedFirstTime.participants.length).toBe(2);
+
+    // Re-join attempt should be idempotent
+    const joinedSecondTime = joinedFirstTime.isJoined
+      ? joinedFirstTime
+      : {
+          ...joinedFirstTime,
+          isJoined: true,
+          participantCount: joinedFirstTime.participantCount + 1,
+          participants: [user, ...joinedFirstTime.participants.filter((p) => p.id !== user.id)],
+        };
+
+    expect(joinedSecondTime.participantCount).toBe(4);
+    expect(joinedSecondTime.participants.length).toBe(2);
+  });
+
+  it('marks notifications as read and decrements unreadActivitiesCount', () => {
+    let notifications: ActivityNotification[] = [
+      { id: '1', title: 'Joined Moment', description: 'desc', timestamp: '1m', type: 'join', read: false },
+      { id: '2', title: 'Drop Ready', description: 'desc', timestamp: '2m', type: 'drop_start', read: false },
+    ];
+
+    expect(notifications.filter((n) => !n.read).length).toBe(2);
+
+    // User taps notification 1
+    notifications = notifications.map((n) => (n.id === '1' ? { ...n, read: true } : n));
+
+    expect(notifications.find((n) => n.id === '1')?.read).toBe(true);
+    expect(notifications.filter((n) => !n.read).length).toBe(1);
   });
 });

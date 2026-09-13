@@ -97,11 +97,24 @@ export const ActivityDrawer: React.FC<ActivityDrawerProps> = ({
               {notifications.map((notif) => (
                 <div
                   key={notif.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelectNotification?.(notif)}
-                  className="p-4 rounded-2xl bg-black/[0.02] hover:bg-black/[0.04] border border-black/[0.05] transition-all cursor-pointer flex flex-col gap-1.5"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectNotification?.(notif);
+                    }
+                  }}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
+                    !notif.read
+                      ? 'bg-mova-maroon/[0.04] border-mova-maroon/20 hover:bg-mova-maroon/[0.07]'
+                      : 'bg-black/[0.02] hover:bg-black/[0.04] border-black/[0.05]'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-mova-maroon flex items-center gap-1.5">
+                      {!notif.read && <span className="w-2 h-2 rounded-full bg-mova-orange animate-pulse" />}
                       {notif.type === 'join' && <Users className="w-3.5 h-3.5" />}
                       {notif.type === 'drop_start' && <Sparkles className="w-3.5 h-3.5 text-mova-gold" />}
                       {notif.type === 'moment_closed' && <Clock className="w-3.5 h-3.5 text-mova-muted" />}

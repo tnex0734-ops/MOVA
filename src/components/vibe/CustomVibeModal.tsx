@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Sparkles, Check } from 'lucide-react';
 
@@ -16,6 +16,10 @@ export const CustomVibeModal: React.FC<CustomVibeModalProps> = ({
   initialValue = '',
 }) => {
   const [vibeText, setVibeText] = useState(initialValue);
+
+  useEffect(() => {
+    setVibeText(initialValue);
+  }, [initialValue, isOpen]);
 
   if (!isOpen) return null;
 

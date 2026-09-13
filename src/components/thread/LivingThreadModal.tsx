@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Moment, Contribution, ContributionType } from '../../types/mova';
+import { Moment, Contribution, ContributionType, UserProfile } from '../../types/mova';
 import { X, GitBranch, Plus, Heart, MapPin, Clock } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatTimeRemaining } from '../../lib/utils';
@@ -12,6 +12,7 @@ interface LivingThreadModalProps {
   contributions: Contribution[];
   onClose: () => void;
   onAddContribution: (momentId: string, contribution: Omit<Contribution, 'id' | 'timestamp'>) => void;
+  currentUser?: UserProfile;
 }
 
 export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
@@ -20,6 +21,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
   contributions,
   onClose,
   onAddContribution,
+  currentUser,
 }) => {
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [branchName, setBranchName] = useState('');
@@ -68,9 +70,9 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
         content: sanitizeText(newContent) || (photoUrl ? 'Photo Perspective' : ''),
         mediaUrl: contributionType === 'photo' ? (photoUrl || 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80') : undefined,
         author: {
-          id: 'user-arun',
-          name: 'Arun K.',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+          id: currentUser?.id || 'user-arun',
+          name: currentUser?.name || 'Arun K.',
+          avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
           joinedAt: 'Just now',
         },
         likesCount: 1,

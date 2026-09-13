@@ -1,7 +1,7 @@
 import React from 'react';
 import { Volume2, VolumeX, Bell, HelpCircle } from 'lucide-react';
 import { Button } from '../common/Button';
-import { VibeId } from '../../types/mova';
+import { VibeId, UserProfile } from '../../types/mova';
 import { CANONICAL_VIBES } from '../../data/mockVibes';
 import { Icon3D } from '../common/Icon3D';
 import movaLogo from '../../assets/MOVALOGO.png';
@@ -17,6 +17,7 @@ interface TopNavProps {
   totalParticipantsCount: number;
   activeDropsCount: number;
   unreadActivitiesCount?: number;
+  userProfile?: UserProfile;
   onOpenActivity?: () => void;
   onOpenIdentity?: () => void;
   onOpenOnboarding?: () => void;
@@ -33,6 +34,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   totalParticipantsCount,
   activeDropsCount,
   unreadActivitiesCount = 0,
+  userProfile,
   onOpenActivity,
   onOpenIdentity,
   onOpenOnboarding,
@@ -174,11 +176,13 @@ export const TopNav: React.FC<TopNavProps> = ({
             className="hidden lg:flex items-center gap-2.5 px-3.5 py-1.5 rounded-pill bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.06] text-xs font-medium shadow-xs transition-colors cursor-pointer text-left min-h-[44px]"
           >
             <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&auto=format&fit=crop&q=80"
-              alt="Arun profile"
+              src={userProfile?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&auto=format&fit=crop&q=80"}
+              alt={`${userProfile?.name || 'User'} profile`}
               className="w-6 h-6 rounded-full object-cover ring-1 ring-mova-ocean/20"
             />
-            <span className="font-semibold text-mova-nearblack">Arun</span>
+            <span className="font-semibold text-mova-nearblack">
+              {userProfile?.name ? userProfile.name.split(' ')[0] : 'Arun'}
+            </span>
             <span className="text-black/20">·</span>
             <div className="flex items-center gap-1.5 text-mova-ocean font-bold">
               {currentVibe?.icon3d ? (

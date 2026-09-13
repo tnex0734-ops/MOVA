@@ -38,6 +38,7 @@ coverage/
 
 # Temp & logs
 *.log
+*.mp4
 
 # Skills cache
 _skills/

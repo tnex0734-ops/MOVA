@@ -216,6 +216,11 @@ function MOVAApp() {
 
   // Shared Action Handlers
   const handleJoin = (moment: Moment) => {
+    if (moment.isJoined) {
+      announce(`Opening living thread for ${moment.title}.`);
+      setActiveMomentForThread(moment);
+      return;
+    }
     playJoin();
     announce(`Joining ${moment.title}. Opening confirmation drawer.`);
     setSelectedMomentForDrawer(moment);
@@ -251,32 +256,34 @@ function MOVAApp() {
     }
   ) => {
     playJoin();
-    // Increment participant count
+    // Increment participant count idempotently
     setMoments((prev) =>
-      prev.map((m) =>
-        m.id === moment.id
-          ? {
-              ...m,
-              isJoined: true,
-              participantCount: m.participantCount + 1,
-              participants: [
-                {
-                  id: userProfile.id,
-                  name: userProfile.name,
-                  avatar: userProfile.avatar,
-                  joinedAt: 'Just now',
-                },
-                ...m.participants,
-              ],
-            }
-          : m
-      )
+      prev.map((m) => {
+        if (m.id !== moment.id) return m;
+        if (m.isJoined) return m;
+        return {
+          ...m,
+          isJoined: true,
+          participantCount: m.participantCount + 1,
+          participants: [
+            {
+              id: userProfile.id,
+              name: userProfile.name,
+              avatar: userProfile.avatar,
+              joinedAt: 'Just now',
+            },
+            ...m.participants.filter((p) => p.id !== userProfile.id),
+          ],
+        };
+      })
     );
 
-    setUserProfile((prev) => ({
-      ...prev,
-      joinedMomentsCount: prev.joinedMomentsCount + 1,
-    }));
+    if (!moment.isJoined) {
+      setUserProfile((prev) => ({
+        ...prev,
+        joinedMomentsCount: prev.joinedMomentsCount + 1,
+      }));
+    }
 
     // If initial contribution provided, add to thread
     if (initialContribution) {
@@ -306,8 +313,26 @@ function MOVAApp() {
 
     showToast(`You joined ${moment.title}!`, 'success');
 
-    // Open Living Thread for this moment
-    setActiveMomentForThread(moment);
+    const updatedMoment: Moment = {
+      ...moment,
+      isJoined: true,
+      participantCount: moment.isJoined ? moment.participantCount : moment.participantCount + 1,
+      participants: moment.isJoined
+        ? moment.participants
+        : [
+            {
+              id: userProfile.id,
+              name: userProfile.name,
+              avatar: userProfile.avatar,
+              joinedAt: 'Just now',
+            },
+            ...moment.participants.filter((p) => p.id !== userProfile.id),
+          ],
+    };
+
+    // Close confirmation drawer & Open Living Thread for this moment
+    setSelectedMomentForDrawer(null);
+    setActiveMomentForThread(updatedMoment);
   };
 
   const handleAddContribution = (
@@ -319,6 +344,12 @@ function MOVAApp() {
       ...newContrib,
       id: `c-${Date.now()}`,
       timestamp: 'Just now',
+      author: {
+        id: userProfile.id,
+        name: userProfile.name,
+        avatar: userProfile.avatar,
+        joinedAt: 'Just now',
+      },
     };
 
     setContributions((prev) => ({
@@ -389,9 +420,11 @@ function MOVAApp() {
     announce(`Sparked new moment: ${newMoment.title} at ${newMoment.location}.`);
     setMoments((prev) => [newMoment, ...prev]);
     setSelectedVibe(newMoment.vibeId);
+    setActiveTab('now');
     setUserProfile((prev) => ({
       ...prev,
       sparksStartedCount: prev.sparksStartedCount + 1,
+      joinedMomentsCount: prev.joinedMomentsCount + 1,
     }));
     showToast(`Moment "${newMoment.title}" sparked live!`, 'success');
   };
@@ -505,6 +538,7 @@ function MOVAApp() {
         totalParticipantsCount={totalParticipantsCount}
         activeDropsCount={activeDropsCount}
         unreadActivitiesCount={unreadActivitiesCount}
+        userProfile={userProfile}
         onOpenActivity={() => {
           playClick();
           setIsActivityOpen(true);
@@ -793,6 +827,7 @@ function MOVAApp() {
                     setIsSparkOpen(true);
                   }}
                   onQuickJoin={(m) => handleJoin(m)}
+                  onOpenThread={(m) => setActiveMomentForThread(m)}
                 />
               )}
 
@@ -803,6 +838,16 @@ function MOVAApp() {
                   onJoin={handleJoin}
                   onPass={handlePass}
                   onOpenThread={(m) => setActiveMomentForThread(m)}
+                  onChangeVibe={() => setSelectedVibe('all')}
+                  onExploreAll={() => {
+                    setSelectedVibe('all');
+                    setFilterChip('all');
+                    setSearchQuery('');
+                  }}
+                  onStartSomething={() => {
+                    setSparkInitialTitle(searchQuery);
+                    setIsSparkOpen(true);
+                  }}
                   onResetStack={() => {
                     setMoments(INITIAL_MOMENTS);
                     setSearchQuery('');
@@ -1184,6 +1229,7 @@ function MOVAApp() {
         contributions={activeMomentForThread ? contributions[activeMomentForThread.id] || [] : []}
         onClose={() => setActiveMomentForThread(null)}
         onAddContribution={handleAddContribution}
+        currentUser={userProfile}
       />
 
       <DropModal
@@ -1206,6 +1252,7 @@ function MOVAApp() {
         onCreateMoment={handleCreateSpark}
         defaultVibeId={selectedVibe}
         initialTitle={sparkInitialTitle}
+        currentUser={userProfile}
       />
 
       <OnboardingModal
@@ -1231,6 +1278,10 @@ function MOVAApp() {
         notifications={notifications}
         onSelectNotification={(n) => {
           setIsActivityOpen(false);
+          // Mark notification as read
+          setNotifications((prev) =>
+            prev.map((notif) => (notif.id === n.id ? { ...notif, read: true } : notif))
+          );
           if (n.momentId) {
             const m = moments.find((mom) => mom.id === n.momentId);
             if (m) setActiveMomentForThread(m);

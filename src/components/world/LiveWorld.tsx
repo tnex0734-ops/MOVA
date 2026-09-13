@@ -12,6 +12,7 @@ interface LiveWorldProps {
   selectedVibe: VibeId | 'all';
   onOpenSpark: () => void;
   onQuickJoin?: (moment: Moment) => void;
+  onOpenThread?: (moment: Moment) => void;
 }
 
 export const LiveWorld: React.FC<LiveWorldProps> = ({
@@ -21,6 +22,7 @@ export const LiveWorld: React.FC<LiveWorldProps> = ({
   selectedVibe,
   onOpenSpark,
   onQuickJoin,
+  onOpenThread,
 }) => {
   const [viewMode, setViewMode] = useState<'realistic' | 'network'>('realistic');
   const currentVibe = CANONICAL_VIBES.find((v) => v.id === selectedVibe);
@@ -34,6 +36,7 @@ export const LiveWorld: React.FC<LiveWorldProps> = ({
         activeMomentId={selectedMoment?.id}
         onSelectMoment={onSelectMoment}
         onQuickJoin={onQuickJoin || onSelectMoment}
+        onOpenThread={onOpenThread}
         onSwitchToNetwork={() => setViewMode('network')}
       />
     );

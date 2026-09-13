@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, MapPin, Edit2, Check, User, HeartHandshake, Layers } from 'lucide-react';
 import { UserProfile } from '../../types/mova';
@@ -24,6 +24,12 @@ export const IdentityDrawer: React.FC<IdentityDrawerProps> = ({
   const [name, setName] = useState(userProfile.name);
   const [bio, setBio] = useState(userProfile.bio);
   const [campusArea, setCampusArea] = useState(userProfile.campusArea);
+
+  useEffect(() => {
+    setName(userProfile.name);
+    setBio(userProfile.bio);
+    setCampusArea(userProfile.campusArea);
+  }, [userProfile.name, userProfile.bio, userProfile.campusArea, isOpen]);
 
   if (!isOpen) return null;
 
@@ -206,7 +212,10 @@ export const IdentityDrawer: React.FC<IdentityDrawerProps> = ({
 
         <div className="pt-4 border-t border-black/[0.05]">
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (isEditing) handleSave();
+              onClose();
+            }}
             className="w-full py-3 rounded-2xl bg-black/[0.03] hover:bg-black/[0.06] font-bold text-xs text-mova-nearblack transition-colors"
           >
             Done

@@ -188,6 +188,17 @@ export const MomentCard: React.FC<MomentCardProps> = ({
               <span>Unavailable</span>
             </Button>
           </div>
+        ) : moment.isJoined ? (
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => onOpenThread(moment)}
+            aria-label={`You're in ${moment.title}. Open living thread`}
+            className="w-full flex items-center justify-center gap-1.5 text-xs font-bold min-h-[42px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+          >
+            <span>You're In · Living Thread</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
         ) : isFull ? (
           <div className="grid grid-cols-2 gap-3">
             <Button
