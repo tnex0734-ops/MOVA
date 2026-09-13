@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import { Moment, VibeId } from '../../types/mova';
 import { ICONS_3D } from '../../lib/icons3d';
@@ -42,16 +42,26 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
   const [selectedPinMoment, setSelectedPinMoment] = useState<Moment | null>(null);
 
-  // Filter moments according to active vibe
-  const filteredMoments = moments.filter(
-    (m) => selectedVibe === 'all' || m.vibeId === selectedVibe
+  const selectedPinMomentRef = useRef<Moment | null>(null);
+  selectedPinMomentRef.current = selectedPinMoment;
+  const onSelectMomentRef = useRef(onSelectMoment);
+  onSelectMomentRef.current = onSelectMoment;
+  const onQuickJoinRef = useRef(onQuickJoin);
+  onQuickJoinRef.current = onQuickJoin;
+  const onOpenThreadRef = useRef(onOpenThread);
+  onOpenThreadRef.current = onOpenThread;
+
+  // Filter moments according to active vibe - memoized so it does not trigger re-render on every clock tick
+  const filteredMoments = useMemo(
+    () => moments.filter((m) => selectedVibe === 'all' || m.vibeId === selectedVibe),
+    [moments, selectedVibe]
   );
 
   // Keep selectedPinMoment in sync with fresh moment data (isJoined, participantCount)
   useEffect(() => {
     if (selectedPinMoment) {
       const fresh = filteredMoments.find((m) => m.id === selectedPinMoment.id);
-      if (fresh) {
+      if (fresh && fresh !== selectedPinMoment) {
         setSelectedPinMoment(fresh);
       }
     }
@@ -69,6 +79,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
       maxZoom: 19,
       zoomControl: false,
       attributionControl: false,
+      doubleClickZoom: false, // Prevent accidental double-click map zoom
     });
 
     // Crisp, reliable open campus basemap (no watermark, full native high-zoom support)
@@ -79,7 +90,11 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
     }).addTo(map);
 
     // Clicking map background dismisses selected pin preview
-    map.on('click', () => {
+    map.on('click', (e: any) => {
+      const target = e.originalEvent?.target as HTMLElement | null;
+      if (target && target.closest('.custom-map-marker')) {
+        return;
+      }
       setSelectedPinMoment(null);
     });
 
@@ -110,14 +125,23 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
     const userMarker = L.marker(USER_COORDINATES, { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
     const userEl = userMarker.getElement();
     if (userEl) {
+      L.DomEvent.disableClickPropagation(userEl);
       L.DomEvent.disableScrollPropagation(userEl);
       userEl.style.cursor = 'pointer';
-      userEl.addEventListener('pointerdown', (pe: PointerEvent) => pe.stopPropagation());
-      userEl.addEventListener('mousedown', (me: MouseEvent) => me.stopPropagation());
+
+      ['mousedown', 'pointerdown', 'touchstart'].forEach((evt) => {
+        userEl.addEventListener(evt, (e) => {
+          e.stopPropagation();
+          if ('stopImmediatePropagation' in e) e.stopImmediatePropagation();
+        }, true);
+      });
+
       userEl.addEventListener('click', (e) => {
         e.stopPropagation();
+        if ('stopImmediatePropagation' in e) e.stopImmediatePropagation();
         map.flyTo(USER_COORDINATES, 17, { duration: 0.8 });
-      });
+      }, true);
+
       userEl.addEventListener('keydown', (ke: KeyboardEvent) => {
         if (ke.key === 'Enter' || ke.key === ' ') {
           ke.preventDefault();
@@ -138,7 +162,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
     };
   }, []);
 
-  // Update Markers whenever filteredMoments or activeMomentId changes
+  // Update Markers whenever filteredMoments changes (NOT on selectedPinMoment, avoiding marker destruction)
   useEffect(() => {
     if (!mapInstanceRef.current || !markersGroupRef.current) return;
 
@@ -148,7 +172,6 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
     filteredMoments.forEach((moment) => {
       if (!moment.geo) return;
 
-      const isSelected = activeMomentId === moment.id || selectedPinMoment?.id === moment.id;
       const vibe = CANONICAL_VIBES.find((v) => v.id === moment.vibeId);
       const iconUrl = ICONS_3D[moment.vibeId];
 
@@ -162,9 +185,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
       const customIcon = L.divIcon({
         className: 'custom-map-marker',
         html: `
-          <div class="group relative flex flex-col items-center cursor-pointer select-none ${
-            isSelected ? 'scale-125 z-50' : ''
-          }" role="button" tabindex="0" aria-label="${moment.title}">
+          <div class="group relative flex flex-col items-center cursor-pointer select-none" data-moment-id="${moment.id}" role="button" tabindex="0" aria-label="${moment.title}">
             <!-- 3D Icon Pin Badge -->
             <div class="w-12 h-12 rounded-full bg-white/95 backdrop-blur-sm border-2 ${ringColor} shadow-bento flex items-center justify-center p-1.5 group-hover:scale-110 transition-transform duration-150">
               <img src="${iconUrl}" alt="${vibe?.label || ''}" class="w-8 h-8 object-contain pointer-events-none drop-shadow-xs" />
@@ -180,29 +201,27 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
             </div>
           </div>
         `,
-        iconSize: [220, 84],
-        iconAnchor: [110, 24],
+        iconSize: [180, 76],
+        iconAnchor: [90, 24],
       });
 
-      let lastClickTime = 0;
       const handleMomentSelect = (e?: any) => {
-        const now = Date.now();
-        if (now - lastClickTime < 200) return;
-        lastClickTime = now;
-
         if (e) {
           if (typeof e.stopPropagation === 'function') e.stopPropagation();
-          if (e.originalEvent && typeof e.originalEvent.stopPropagation === 'function') {
-            e.originalEvent.stopPropagation();
+          if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+          if (e.originalEvent) {
+            if (typeof e.originalEvent.stopPropagation === 'function') e.originalEvent.stopPropagation();
+            if (typeof e.originalEvent.stopImmediatePropagation === 'function') e.originalEvent.stopImmediatePropagation();
           }
         }
 
-        // If the pin is already selected, clicking/tapping it again opens the living thread or confirmation drawer
-        if (selectedPinMoment?.id === moment.id) {
-          if (moment.isJoined && onOpenThread) {
-            onOpenThread(moment);
-          } else {
-            onSelectMoment(moment);
+        const currentSelected = selectedPinMomentRef.current;
+        // If the pin is already selected, clicking it again opens the living thread or confirmation drawer
+        if (currentSelected?.id === moment.id) {
+          if (moment.isJoined && onOpenThreadRef.current) {
+            onOpenThreadRef.current(moment);
+          } else if (onSelectMomentRef.current) {
+            onSelectMomentRef.current(moment);
           }
           return;
         }
@@ -213,36 +232,52 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
 
       const marker = L.marker([moment.geo.lat, moment.geo.lng], {
         icon: customIcon,
-        zIndexOffset: isSelected ? 500 : 100,
+        zIndexOffset: 100,
         title: moment.title,
       });
 
-      marker.on('click', handleMomentSelect);
       marker.addTo(markersGroup);
 
       // Secure DOM level interaction and prevent map drag interception on desktop
       const markerEl = marker.getElement();
       if (markerEl) {
+        L.DomEvent.disableClickPropagation(markerEl);
         L.DomEvent.disableScrollPropagation(markerEl);
         markerEl.style.cursor = 'pointer';
-        markerEl.setAttribute('role', 'button');
-        markerEl.setAttribute('tabindex', '0');
-        markerEl.setAttribute(
-          'aria-label',
-          `Moment: ${moment.title}. ${moment.participantCount} people gathered, ${moment.walkingMinutes || 2} minute walk. Click to select.`
-        );
 
-        // Prevent pointerdown and mousedown on the pin from triggering map drag on desktop
-        markerEl.addEventListener('pointerdown', (pe: PointerEvent) => {
+        const inner = markerEl.querySelector('.group') as HTMLElement | null;
+        if (inner) {
+          L.DomEvent.disableClickPropagation(inner);
+          L.DomEvent.disableScrollPropagation(inner);
+          inner.style.cursor = 'pointer';
+        }
+
+        // Intercept mousedown and pointerdown in the CAPTURE phase so Leaflet Map drag NEVER starts
+        const stopDrag = (pe: Event) => {
           pe.stopPropagation();
+          if ('stopImmediatePropagation' in pe) {
+            pe.stopImmediatePropagation();
+          }
+        };
+
+        ['mousedown', 'pointerdown', 'touchstart'].forEach((eventType) => {
+          markerEl.addEventListener(eventType, stopDrag, true);
+          if (inner) inner.addEventListener(eventType, stopDrag, true);
         });
-        markerEl.addEventListener('mousedown', (me: MouseEvent) => {
-          me.stopPropagation();
-        });
-        markerEl.addEventListener('click', (ce: MouseEvent) => {
+
+        const handleActivation = (ce: Event) => {
           ce.stopPropagation();
+          if ('stopImmediatePropagation' in ce) {
+            ce.stopImmediatePropagation();
+          }
           handleMomentSelect(ce);
+        };
+
+        ['click', 'pointerup'].forEach((eventType) => {
+          markerEl.addEventListener(eventType, handleActivation, true);
+          if (inner) inner.addEventListener(eventType, handleActivation, true);
         });
+
         markerEl.addEventListener('keydown', (ke: KeyboardEvent) => {
           if (ke.key === 'Enter' || ke.key === ' ') {
             ke.preventDefault();
@@ -250,8 +285,27 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
           }
         });
       }
+
+      marker.on('click', (e) => {
+        handleMomentSelect(e);
+      });
     });
-  }, [filteredMoments, activeMomentId, selectedPinMoment, onSelectMoment, onOpenThread]);
+  }, [filteredMoments]);
+
+  // Lightweight effect to update selected pin highlight without re-creating all Leaflet markers
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const allPins = mapContainerRef.current.querySelectorAll<HTMLElement>('[data-moment-id]');
+    allPins.forEach((pin) => {
+      const id = pin.getAttribute('data-moment-id');
+      const isSelected = id === selectedPinMoment?.id || id === activeMomentId;
+      if (isSelected) {
+        pin.classList.add('scale-125', 'z-50');
+      } else {
+        pin.classList.remove('scale-125', 'z-50');
+      }
+    });
+  }, [selectedPinMoment?.id, activeMomentId, filteredMoments]);
 
   // Recenter to user
   const handleRecenter = () => {
