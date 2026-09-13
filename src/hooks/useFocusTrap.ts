@@ -13,32 +13,53 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>({
 }: FocusTrapOptions) {
   const containerRef = useRef<T>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const initialFocusRefRef = useRef(initialFocusRef);
+  initialFocusRefRef.current = initialFocusRef;
+  const hasFocusedForThisOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasFocusedForThisOpenRef.current = false;
+      return;
+    }
 
     // Save previous active element for restoration on close
     previousActiveElementRef.current = document.activeElement as HTMLElement;
 
-    // Focus designated element or first focusable child
-    const timer = setTimeout(() => {
-      if (initialFocusRef?.current) {
-        initialFocusRef.current.focus();
-      } else if (containerRef.current) {
-        const focusables = containerRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
-        );
-        if (focusables.length > 0) {
-          focusables[0].focus();
+    // Lock body scroll while modal is open to avoid background scroll chaining
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Focus designated element or first focusable child ONLY ONCE per modal opening
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (!hasFocusedForThisOpenRef.current) {
+      hasFocusedForThisOpenRef.current = true;
+      timer = setTimeout(() => {
+        // If the user already focused something inside the modal container, do NOT steal or jump focus
+        if (containerRef.current && containerRef.current.contains(document.activeElement)) {
+          return;
         }
-      }
-    }, 50);
+
+        if (initialFocusRefRef.current?.current) {
+          initialFocusRefRef.current.current.focus({ preventScroll: true });
+        } else if (containerRef.current) {
+          const focusables = containerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
+          );
+          if (focusables.length > 0) {
+            focusables[0].focus({ preventScroll: true });
+          }
+        }
+      }, 50);
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
 
@@ -59,13 +80,13 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>({
         // Shift + Tab: if on first element, wrap around to last
         if (document.activeElement === firstElement || !containerRef.current.contains(document.activeElement)) {
           e.preventDefault();
-          lastElement.focus();
+          lastElement.focus({ preventScroll: true });
         }
       } else {
         // Tab: if on last element, wrap around to first
         if (document.activeElement === lastElement || !containerRef.current.contains(document.activeElement)) {
           e.preventDefault();
-          firstElement.focus();
+          firstElement.focus({ preventScroll: true });
         }
       }
     };
@@ -73,14 +94,20 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>({
     window.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       window.removeEventListener('keydown', handleKeyDown, true);
-      // Restore focus to trigger element
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  // Restore focus to previous active element only on final unmount or close
+  useEffect(() => {
+    return () => {
       if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === 'function') {
-        previousActiveElementRef.current.focus();
+        previousActiveElementRef.current.focus({ preventScroll: true });
       }
     };
-  }, [isOpen, onClose, initialFocusRef]);
+  }, []);
 
   return containerRef;
 }

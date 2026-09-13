@@ -179,7 +179,7 @@ export const SparkModal: React.FC<SparkModalProps> = ({
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-xl bg-white rounded-3xl sm:rounded-drawer p-6 sm:p-9 shadow-2xl border border-black/[0.06] overflow-y-auto max-h-[85vh] sm:max-h-[88vh]"
+        className="relative w-full max-w-xl bg-white rounded-3xl sm:rounded-drawer p-6 sm:p-9 shadow-2xl border border-black/[0.06] overflow-y-auto max-h-[85vh] sm:max-h-[88vh] overscroll-contain"
       >
         
         {/* Close Button */}
