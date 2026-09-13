@@ -183,18 +183,25 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
         iconAnchor: [110, 24],
       });
 
+      let lastClickTime = 0;
       const handleMomentSelect = (e?: any) => {
+        const now = Date.now();
+        if (now - lastClickTime < 250) return;
+        lastClickTime = now;
+
         if (e) {
           if (typeof e.stopPropagation === 'function') e.stopPropagation();
           if (e.originalEvent && typeof e.originalEvent.stopPropagation === 'function') {
             e.originalEvent.stopPropagation();
           }
         }
-        // Clicking pin shows the quick preview card (Image 2) and centers the map smoothly
-        setSelectedPinMoment(moment);
-        mapInstanceRef.current?.flyTo([moment.geo!.lat, moment.geo!.lng], 16.8, {
-          duration: 0.8,
-        });
+
+        // Open living thread if already joined, or open confirmation drawer to join/view
+        if (moment.isJoined && onOpenThread) {
+          onOpenThread(moment);
+        } else {
+          onSelectMoment(moment);
+        }
       };
 
       const marker = L.marker([moment.geo.lat, moment.geo.lng], {
@@ -217,7 +224,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
         markerEl.setAttribute('tabindex', '0');
         markerEl.setAttribute(
           'aria-label',
-          `Moment: ${moment.title}. ${moment.participantCount} people gathered, ${moment.walkingMinutes || 2} minute walk. Click to preview.`
+          `Moment: ${moment.title}. ${moment.participantCount} people gathered, ${moment.walkingMinutes || 2} minute walk. Click to open.`
         );
         markerEl.addEventListener('click', handleMomentSelect);
         markerEl.addEventListener('keydown', (ke: KeyboardEvent) => {
@@ -228,7 +235,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
         });
       }
     });
-  }, [filteredMoments, activeMomentId]);
+  }, [filteredMoments, activeMomentId, onSelectMoment, onOpenThread]);
 
   // Recenter to user
   const handleRecenter = () => {
