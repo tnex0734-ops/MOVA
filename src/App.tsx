@@ -25,7 +25,7 @@ import { CustomVibeModal } from './components/vibe/CustomVibeModal';
 import { useClock } from './hooks/useClock';
 import { useAudioFeedback } from './hooks/useAudioFeedback';
 import { useKeyboardNav } from './hooks/useKeyboardNav';
-import { Layers, HelpCircle, Search, WifiOff, X, Sparkles, MapPin, Clock } from 'lucide-react';
+import { Layers, HelpCircle, Search, WifiOff, X, Sparkles, MapPin, Clock, Calendar } from 'lucide-react';
 import { Button } from './components/common/Button';
 import { Icon3D } from './components/common/Icon3D';
 import { LiveAnnouncer } from './components/common/LiveAnnouncer';
@@ -91,7 +91,7 @@ function MOVAApp() {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterChip, setFilterChip] = useState<'all' | 'closing' | 'nearby' | 'open'>('all');
+  const [filterChip, setFilterChip] = useState<'all' | 'closing' | 'nearby' | 'open' | 'scheduled'>('all');
   const [dropsFilter, setDropsFilter] = useState<'all' | 'active' | 'upcoming' | 'completed'>('all');
 
   // Core Domain State
@@ -184,6 +184,8 @@ function MOVAApp() {
         if ((m.distanceMeters ?? 999) > 150) return false;
       } else if (filterChip === 'open') {
         if (m.isFull || m.status === 'full' || m.status === 'closed' || (m.maxParticipants && m.participantCount >= m.maxParticipants)) return false;
+      } else if (filterChip === 'scheduled') {
+        if (!m.isScheduled && !m.scheduledDate) return false;
       }
 
       // Search query
@@ -760,6 +762,17 @@ function MOVAApp() {
                     }`}
                   >
                     Open Capacity
+                  </button>
+                  <button
+                    onClick={() => setFilterChip('scheduled')}
+                    className={`px-3 py-1 rounded-pill text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                      filterChip === 'scheduled'
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'bg-indigo-50 text-indigo-800 border border-indigo-200/80 hover:bg-indigo-100'
+                    }`}
+                  >
+                    <Calendar className="w-3 h-3" />
+                    <span>Scheduled Ahead</span>
                   </button>
                 </div>
               </div>

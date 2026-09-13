@@ -75,6 +75,56 @@ describe('MOVA Core Component Flows & Modal Dialogs', () => {
     expect(screen.getByText(/Moment title cannot be empty/i)).toBeInTheDocument();
   });
 
+  it('supports scheduling a moment with date and time in SparkModal', () => {
+    const onCreate = vi.fn();
+    const onClose = vi.fn();
+
+    const { container } = render(
+      <SparkModal
+        isOpen={true}
+        onClose={onClose}
+        onCreateMoment={onCreate}
+        defaultVibeId="play"
+        initialTitle=""
+      />
+    );
+
+    // Switch from Happening Now to Schedule Ahead
+    const scheduleToggleBtn = screen.getByText(/Schedule Ahead/i);
+    fireEvent.click(scheduleToggleBtn);
+
+    // Verify scheduled date & time controls are visible
+    expect(screen.getByText(/Scheduled Date/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start Time/i)).toBeInTheDocument();
+
+    // Select "Tomorrow"
+    const tomorrowBtn = screen.getByRole('button', { name: /Tomorrow/i });
+    fireEvent.click(tomorrowBtn);
+
+    // Select "6:00 PM"
+    const timeBtn = screen.getByRole('button', { name: /6:00 PM/i });
+    fireEvent.click(timeBtn);
+
+    // Fill in title and location
+    const titleInput = screen.getByLabelText(/What is happening\?/i);
+    fireEvent.change(titleInput, { target: { value: 'Acoustic Rooftop Jam' } });
+
+    const locationInput = screen.getByLabelText(/Exact Spot/i);
+    fireEvent.change(locationInput, { target: { value: 'Hostel 4 Rooftop' } });
+
+    // Submit the form
+    const form = container.querySelector('form')!;
+    fireEvent.submit(form);
+
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    const createdMoment = onCreate.mock.calls[0][0];
+    expect(createdMoment.isScheduled).toBe(true);
+    expect(createdMoment.scheduledDate).toBe('Tomorrow');
+    expect(createdMoment.scheduledTime).toBe('6:00 PM');
+    expect(createdMoment.title).toBe('Acoustic Rooftop Jam');
+    expect(createdMoment.location).toBe('Hostel 4 Rooftop');
+  });
+
   it('renders DropModal for active synchronized drop and allows viewing prompt', () => {
     const onSubmit = vi.fn();
     const onClose = vi.fn();

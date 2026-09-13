@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, MapPin, Clock, Camera, Upload, Trash2 } from 'lucide-react';
+import { X, MapPin, Clock, Camera, Upload, Trash2, Calendar } from 'lucide-react';
 import { Button } from '../common/Button';
 import { VibeId, Moment } from '../../types/mova';
 import { CANONICAL_VIBES } from '../../data/mockVibes';
@@ -27,6 +27,24 @@ const SAMPLE_PHOTOS = [
   { label: '🎸 Jam Corner', url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&auto=format&fit=crop&q=80' },
 ];
 
+const getTodayISO = () => {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const formatTimeTo12Hour = (time24: string): string => {
+  if (!time24) return '';
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr, 10);
+  if (isNaN(h)) return time24;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${mStr || '00'} ${period}`;
+};
+
 export const SparkModal: React.FC<SparkModalProps> = ({
   isOpen,
   onClose,
@@ -40,6 +58,10 @@ export const SparkModal: React.FC<SparkModalProps> = ({
   const [vibeId, setVibeId] = useState<VibeId>(
     defaultVibeId === 'all' ? 'spontaneous' : defaultVibeId
   );
+  const [timingMode, setTimingMode] = useState<'now' | 'scheduled'>('now');
+  const [scheduleDateOption, setScheduleDateOption] = useState<'today' | 'tomorrow' | 'weekend' | 'custom'>('today');
+  const [customDate, setCustomDate] = useState<string>(getTodayISO);
+  const [scheduledTime, setScheduledTime] = useState<string>('17:00');
   const [duration, setDuration] = useState<number>(30);
   const [maxCapacity, setMaxCapacity] = useState<number | undefined>(undefined);
   const [photoUrl, setPhotoUrl] = useState<string>('');
@@ -49,6 +71,22 @@ export const SparkModal: React.FC<SparkModalProps> = ({
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getComputedScheduledDate = (): string => {
+    if (scheduleDateOption === 'today') return 'Today';
+    if (scheduleDateOption === 'tomorrow') return 'Tomorrow';
+    if (scheduleDateOption === 'weekend') return 'This Weekend';
+    if (customDate) {
+      try {
+        const [y, m, d] = customDate.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      } catch {
+        return customDate;
+      }
+    }
+    return 'Upcoming';
+  };
 
   const hasDraft = title.trim().length > 0 || location.trim().length > 0 || photoUrl.length > 0;
 
@@ -121,6 +159,10 @@ export const SparkModal: React.FC<SparkModalProps> = ({
       return;
     }
 
+    const isScheduled = timingMode === 'scheduled';
+    const computedDate = isScheduled ? getComputedScheduledDate() : undefined;
+    const computedTime = isScheduled ? formatTimeTo12Hour(scheduledTime) : undefined;
+
     const newMoment: Moment = {
       id: `moment-spark-${Date.now()}`,
       title: sanitizeText(title),
@@ -131,7 +173,9 @@ export const SparkModal: React.FC<SparkModalProps> = ({
       remainingMinutes: duration,
       status: 'active',
       activityLevel: 'active',
-      description: `Spontaneous moment sparked right now!`,
+      description: isScheduled
+        ? `Scheduled for ${computedDate} at ${computedTime}. Join early to hold your spot!`
+        : `Spontaneous moment sparked right now!`,
       photoUrl: photoUrl || undefined,
       geo: {
         lat: 37.8719 + (Math.random() - 0.5) * 0.003,
@@ -139,6 +183,9 @@ export const SparkModal: React.FC<SparkModalProps> = ({
       },
       distanceMeters: Math.floor(Math.random() * 180) + 60,
       walkingMinutes: 2,
+      isScheduled,
+      scheduledDate: computedDate,
+      scheduledTime: computedTime,
       initiator: {
         id: currentUser?.id || 'user-arun',
         name: currentUser?.name || 'Arun K.',
@@ -154,7 +201,7 @@ export const SparkModal: React.FC<SparkModalProps> = ({
           joinedAt: 'Just now',
         },
       ],
-      tags: ['spontaneous', 'new', vibeId],
+      tags: [vibeId, isScheduled ? 'scheduled' : 'spontaneous', 'campus-live'],
       coordinates: {
         x: Math.floor(Math.random() * 60) + 20,
         y: Math.floor(Math.random() * 60) + 20,
@@ -420,46 +467,229 @@ export const SparkModal: React.FC<SparkModalProps> = ({
           </div>
 
           {/* Location and Duration Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="spark-location" className="block text-xs font-bold uppercase tracking-wider text-mova-muted mb-1.5 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-mova-ocean" />
-                <span>Exact Spot</span>
+          {/* Exact Spot */}
+          <div>
+            <label htmlFor="spark-location" className="block text-xs font-bold uppercase tracking-wider text-mova-muted mb-1.5 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-mova-ocean" />
+              <span>Exact Spot</span> <span className="text-mova-ocean">*</span>
+            </label>
+            <input
+              id="spark-location"
+              type="text"
+              placeholder="e.g. Block B Canteen, Badminton Court 2, Rooftop Lawn"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none transition-all"
+              maxLength={60}
+              required
+            />
+          </div>
+
+          {/* Timing & Date Scheduling Mode */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-mova-muted flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-mova-orange" />
+                <span>When is this happening?</span>
               </label>
-              <input
-                id="spark-location"
-                type="text"
-                placeholder="e.g. Block B Canteen, Court 2"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none transition-all"
-                maxLength={60}
-                required
-              />
+              <span className="text-[11px] font-semibold text-mova-ocean">
+                {timingMode === 'now' ? 'Starting Immediately' : 'Scheduled Ahead'}
+              </span>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-mova-muted mb-1.5 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-mova-orange" />
-                <span>Time Window</span>
-              </label>
-              <div className="flex gap-1.5">
-                {[15, 30, 45, 60].map((mins) => (
-                  <button
-                    key={mins}
-                    type="button"
-                    onClick={() => setDuration(mins)}
-                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-                      duration === mins
-                        ? 'bg-mova-ocean text-white shadow-xs'
-                        : 'bg-mova-ice-soft text-mova-ocean border border-mova-ice-border hover:bg-mova-ice'
-                    }`}
-                  >
-                    {mins}m
-                  </button>
-                ))}
-              </div>
+            {/* Timing Mode Segmented Switch */}
+            <div className="grid grid-cols-2 p-1 rounded-2xl bg-black/[0.04] border border-black/[0.05] gap-1">
+              <button
+                type="button"
+                onClick={() => setTimingMode('now')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  timingMode === 'now'
+                    ? 'bg-white text-mova-ocean shadow-xs'
+                    : 'text-mova-muted hover:text-mova-nearblack'
+                }`}
+              >
+                <span>⚡ Happening Now</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimingMode('scheduled')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  timingMode === 'scheduled'
+                    ? 'bg-mova-ocean text-white shadow-xs'
+                    : 'text-mova-muted hover:text-mova-nearblack'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>📅 Schedule Ahead</span>
+              </button>
             </div>
+
+            {/* Sub-Panel: Happening Now Duration */}
+            {timingMode === 'now' && (
+              <div className="p-3 rounded-2xl bg-mova-ice-soft/60 border border-mova-ice-border flex flex-col gap-2 animate-fadeIn">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-mova-nearblack flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-mova-orange" />
+                    Live Duration Window
+                  </span>
+                  <span className="text-[11px] text-mova-muted">Active immediately on campus map</span>
+                </div>
+                <div className="flex gap-1.5">
+                  {[15, 30, 45, 60, 90].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setDuration(mins)}
+                      className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+                        duration === mins
+                          ? 'bg-mova-ocean text-white shadow-xs'
+                          : 'bg-white text-mova-ocean border border-mova-ice-border hover:bg-mova-ice-soft'
+                      }`}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Panel: Schedule Ahead (Date & Time Picker) */}
+            {timingMode === 'scheduled' && (
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex flex-col gap-3.5 animate-fadeIn">
+                {/* 1. Date Selection */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Scheduled Date</span>
+                    </label>
+                    <span className="text-[11px] font-bold text-indigo-700">
+                      {getComputedScheduledDate()}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { id: 'today', label: 'Today' },
+                      { id: 'tomorrow', label: 'Tomorrow' },
+                      { id: 'weekend', label: 'Weekend' },
+                      { id: 'custom', label: 'Pick Date' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setScheduleDateOption(opt.id as any);
+                        }}
+                        className={`py-1.5 text-xs font-bold rounded-xl transition-all ${
+                          scheduleDateOption === opt.id
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-white text-indigo-900 border border-indigo-200/70 hover:bg-indigo-100/50'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Specific Date input if custom is chosen */}
+                  {scheduleDateOption === 'custom' && (
+                    <div className="mt-1">
+                      <input
+                        type="date"
+                        aria-label="Pick custom date"
+                        value={customDate}
+                        min={getTodayISO()}
+                        onChange={(e) => setCustomDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-indigo-200 text-xs font-semibold text-indigo-950 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Start Time Selection */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Start Time</span>
+                    </label>
+                    <span className="text-[11px] font-mono-tabular font-bold text-indigo-700">
+                      {formatTimeTo12Hour(scheduledTime)}
+                    </span>
+                  </div>
+
+                  {/* Quick Preset Buttons */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { label: 'In 1h', time: '17:00' },
+                      { label: '3:00 PM', time: '15:00' },
+                      { label: '6:00 PM', time: '18:00' },
+                      { label: '8:30 PM', time: '20:30' },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setScheduledTime(p.time)}
+                        className={`py-1.5 text-xs font-bold rounded-xl transition-all ${
+                          scheduledTime === p.time
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-white text-indigo-900 border border-indigo-200/70 hover:bg-indigo-100/50'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Exact Time Input */}
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[11px] text-indigo-900/80 font-medium shrink-0">Exact Time:</span>
+                    <input
+                      type="time"
+                      aria-label="Pick exact start time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded-xl bg-white border border-indigo-200 text-xs font-semibold text-indigo-950 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Duration Window */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-indigo-950">Expected Duration</span>
+                    <span className="text-[11px] font-semibold text-indigo-700">
+                      {duration >= 60 ? `${duration / 60} hour(s)` : `${duration} mins`}
+                    </span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {[30, 45, 60, 90, 120].map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => setDuration(mins)}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                          duration === mins
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-white text-indigo-900 border border-indigo-200/70 hover:bg-indigo-100/50'
+                        }`}
+                      >
+                        {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Summary Pill */}
+                <div className="py-2 px-3 rounded-xl bg-indigo-100/80 text-indigo-900 text-xs font-medium flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span>
+                    Scheduled: <strong>{getComputedScheduledDate()}</strong> at <strong>{formatTimeTo12Hour(scheduledTime)}</strong> ({duration}m window)
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Group Capacity Setting */}
@@ -502,7 +732,7 @@ export const SparkModal: React.FC<SparkModalProps> = ({
           Cancel
         </Button>
         <Button type="submit" form="spark-form" variant="primary" size="md" className="font-semibold shadow-md">
-          Launch Moment Now
+          {timingMode === 'scheduled' ? 'Schedule Moment' : 'Launch Moment Now'}
         </Button>
       </div>
     </div>

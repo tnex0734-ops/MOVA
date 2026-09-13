@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Moment, Contribution, ContributionType, UserProfile } from '../../types/mova';
-import { X, GitBranch, Plus, Heart, MapPin, Clock, Camera, Mic, Square, Edit3, Trash2 } from 'lucide-react';
+import { X, GitBranch, Plus, Heart, MapPin, Clock, Camera, Mic, Square, Edit3, Trash2, Calendar } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatTimeRemaining } from '../../lib/utils';
 import { sanitizeText } from '../../lib/validation';
@@ -218,8 +218,17 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
               </span>
               <span className="text-xs text-mova-muted">·</span>
               <span className="font-mono-tabular text-xs text-mova-muted flex items-center gap-1">
-                <Clock className="w-3 h-3 text-mova-orange" />
-                {formatTimeRemaining(moment.remainingMinutes)}
+                {moment.isScheduled && moment.scheduledDate ? (
+                  <>
+                    <Calendar className="w-3 h-3 text-indigo-600" />
+                    <span className="text-indigo-700 font-semibold">{moment.scheduledDate}{moment.scheduledTime ? ` · ${moment.scheduledTime}` : ''}</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-3 h-3 text-mova-orange" />
+                    <span>{formatTimeRemaining(moment.remainingMinutes)}</span>
+                  </>
+                )}
               </span>
             </div>
             <h2 id="thread-modal-title" className="font-crayon text-2xl sm:text-3xl font-bold text-mova-ocean leading-tight break-words">

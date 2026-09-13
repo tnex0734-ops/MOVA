@@ -408,9 +408,15 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-mova-ice-soft text-mova-ocean border border-mova-ice-border">
                   {selectedPinMoment.vibeId}
                 </span>
-                <span className="text-[11px] text-mova-muted font-mono-tabular">
-                  {selectedPinMoment.distanceMeters || 180}m away · {selectedPinMoment.walkingMinutes || 2} min walk
-                </span>
+                {selectedPinMoment.isScheduled && selectedPinMoment.scheduledDate ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    📅 {selectedPinMoment.scheduledDate}{selectedPinMoment.scheduledTime ? ` · ${selectedPinMoment.scheduledTime}` : ''}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-mova-muted font-mono-tabular">
+                    {selectedPinMoment.distanceMeters || 180}m away · {selectedPinMoment.walkingMinutes || 2} min walk
+                  </span>
+                )}
               </div>
               <h4 className="font-crayon text-base font-bold text-mova-ocean truncate mt-0.5">
                 {selectedPinMoment.title}

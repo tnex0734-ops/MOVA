@@ -1,7 +1,7 @@
 import React from 'react';
 import { Moment } from '../../types/mova';
 import { CANONICAL_VIBES } from '../../data/mockVibes';
-import { Users, ArrowRight, X } from 'lucide-react';
+import { Users, ArrowRight, X, Calendar } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatTimeRemaining } from '../../lib/utils';
 import { Icon3D } from '../common/Icon3D';
@@ -64,6 +64,11 @@ export const MomentCard: React.FC<MomentCardProps> = ({
             <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
               <span>Full ({moment.participantCount}{moment.maxParticipants ? `/${moment.maxParticipants}` : ''})</span>
+            </span>
+          ) : moment.isScheduled && moment.scheduledDate ? (
+            <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-indigo-50 text-indigo-700 border border-indigo-200/80 flex items-center gap-1.5 shadow-2xs">
+              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+              <span>{moment.scheduledDate}{moment.scheduledTime ? ` · ${moment.scheduledTime}` : ''}</span>
             </span>
           ) : isClosingSoon ? (
             <span className="font-mono-tabular text-xs font-semibold px-2.5 py-1 rounded-pill bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5 animate-pulse">
@@ -240,7 +245,7 @@ export const MomentCard: React.FC<MomentCardProps> = ({
               aria-label={`Join ${moment.title}`}
               className="flex items-center justify-center gap-1.5 text-xs font-bold shadow-sm min-h-[42px]"
             >
-              <span>I'm In</span>
+              <span>{moment.isScheduled ? 'Join Scheduled' : "I'm In"}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </div>

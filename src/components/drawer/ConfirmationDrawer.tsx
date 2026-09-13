@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moment, ContributionType } from '../../types/mova';
-import { X, Users, Check, Camera, Mic, Edit3, Trash2, Square } from 'lucide-react';
+import { X, Users, Check, Camera, Mic, Edit3, Trash2, Square, Calendar } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatTimeRemaining } from '../../lib/utils';
 import { CANONICAL_VIBES } from '../../data/mockVibes';
@@ -271,10 +271,17 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
                   <span>{moment.location}</span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-mova-muted mt-0.5">
-                  <span className="flex items-center gap-1">
-                    <Icon3D name="clock" size="xs" />
-                    <span>{formatTimeRemaining(moment.remainingMinutes)}</span>
-                  </span>
+                  {moment.isScheduled && moment.scheduledDate ? (
+                    <span className="flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded-md border border-indigo-100">
+                      <Calendar className="w-3 h-3 text-indigo-600" />
+                      <span>{moment.scheduledDate}{moment.scheduledTime ? ` · ${moment.scheduledTime}` : ''}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <Icon3D name="clock" size="xs" />
+                      <span>{formatTimeRemaining(moment.remainingMinutes)}</span>
+                    </span>
+                  )}
                   <span>·</span>
                   <span className="flex items-center gap-1">
                     <Users className="w-3 h-3 text-mova-muted" />

@@ -67,6 +67,9 @@ export interface Moment {
   isPassed?: boolean;
   isFull?: boolean;
   isCancelled?: boolean;
+  isScheduled?: boolean;
+  scheduledDate?: string; // e.g. "Today", "Tomorrow", "This Weekend", or "2026-09-14"
+  scheduledTime?: string; // e.g. "5:30 PM", "17:30"
   createdAt: string;
 }
 
