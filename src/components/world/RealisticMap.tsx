@@ -110,9 +110,10 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
     const userMarker = L.marker(USER_COORDINATES, { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
     const userEl = userMarker.getElement();
     if (userEl) {
-      L.DomEvent.disableClickPropagation(userEl);
       L.DomEvent.disableScrollPropagation(userEl);
       userEl.style.cursor = 'pointer';
+      userEl.addEventListener('pointerdown', (pe: PointerEvent) => pe.stopPropagation());
+      userEl.addEventListener('mousedown', (me: MouseEvent) => me.stopPropagation());
       userEl.addEventListener('click', (e) => {
         e.stopPropagation();
         map.flyTo(USER_COORDINATES, 17, { duration: 0.8 });
@@ -186,7 +187,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
       let lastClickTime = 0;
       const handleMomentSelect = (e?: any) => {
         const now = Date.now();
-        if (now - lastClickTime < 250) return;
+        if (now - lastClickTime < 200) return;
         lastClickTime = now;
 
         if (e) {
@@ -196,12 +197,18 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
           }
         }
 
-        // Open living thread if already joined, or open confirmation drawer to join/view
-        if (moment.isJoined && onOpenThread) {
-          onOpenThread(moment);
-        } else {
-          onSelectMoment(moment);
+        // If the pin is already selected, clicking/tapping it again opens the living thread or confirmation drawer
+        if (selectedPinMoment?.id === moment.id) {
+          if (moment.isJoined && onOpenThread) {
+            onOpenThread(moment);
+          } else {
+            onSelectMoment(moment);
+          }
+          return;
         }
+
+        // Tap/click selects the moment: highlights pin on map and brings up preview card
+        setSelectedPinMoment(moment);
       };
 
       const marker = L.marker([moment.geo.lat, moment.geo.lng], {
@@ -213,20 +220,29 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
       marker.on('click', handleMomentSelect);
       marker.addTo(markersGroup);
 
-      // Secure DOM level interaction and prevent map drag interception
+      // Secure DOM level interaction and prevent map drag interception on desktop
       const markerEl = marker.getElement();
       if (markerEl) {
-        L.DomEvent.disableClickPropagation(markerEl);
         L.DomEvent.disableScrollPropagation(markerEl);
-        markerEl.style.pointerEvents = 'auto';
         markerEl.style.cursor = 'pointer';
         markerEl.setAttribute('role', 'button');
         markerEl.setAttribute('tabindex', '0');
         markerEl.setAttribute(
           'aria-label',
-          `Moment: ${moment.title}. ${moment.participantCount} people gathered, ${moment.walkingMinutes || 2} minute walk. Click to open.`
+          `Moment: ${moment.title}. ${moment.participantCount} people gathered, ${moment.walkingMinutes || 2} minute walk. Click to select.`
         );
-        markerEl.addEventListener('click', handleMomentSelect);
+
+        // Prevent pointerdown and mousedown on the pin from triggering map drag on desktop
+        markerEl.addEventListener('pointerdown', (pe: PointerEvent) => {
+          pe.stopPropagation();
+        });
+        markerEl.addEventListener('mousedown', (me: MouseEvent) => {
+          me.stopPropagation();
+        });
+        markerEl.addEventListener('click', (ce: MouseEvent) => {
+          ce.stopPropagation();
+          handleMomentSelect(ce);
+        });
         markerEl.addEventListener('keydown', (ke: KeyboardEvent) => {
           if (ke.key === 'Enter' || ke.key === ' ') {
             ke.preventDefault();
@@ -235,7 +251,7 @@ export const RealisticMap: React.FC<RealisticMapProps> = ({
         });
       }
     });
-  }, [filteredMoments, activeMomentId, onSelectMoment, onOpenThread]);
+  }, [filteredMoments, activeMomentId, selectedPinMoment, onSelectMoment, onOpenThread]);
 
   // Recenter to user
   const handleRecenter = () => {

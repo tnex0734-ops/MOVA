@@ -104,8 +104,12 @@
 .custom-map-marker {
   background: transparent;
   border: none;
-  pointer-events: auto !important;
+  pointer-events: none !important;
   cursor: pointer;
+}
+
+.custom-map-marker > * {
+  pointer-events: auto !important;
 }
 
 @keyframes radar-ping {
