@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Moment, Contribution, ContributionType, UserProfile } from '../../types/mova';
-import { X, GitBranch, Plus, Heart, MapPin, Clock } from 'lucide-react';
+import { X, GitBranch, Plus, Heart, MapPin, Clock, Camera, Mic, Square, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatTimeRemaining } from '../../lib/utils';
 import { sanitizeText } from '../../lib/validation';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { sound } from '../../lib/sound';
 
 interface LivingThreadModalProps {
   isOpen: boolean;
@@ -32,7 +33,25 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const [voiceRecorded, setVoiceRecorded] = useState(false);
+  const [sketchDataUrl, setSketchDataUrl] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = useRef(false);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (isRecordingVoice) {
+      interval = setInterval(() => {
+        setVoiceSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRecordingVoice]);
 
   const modalRef = useFocusTrap<HTMLDivElement>({
     isOpen,
@@ -40,6 +59,13 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
   });
 
   if (!isOpen || !moment) return null;
+
+  const SAMPLE_THREAD_PHOTOS = [
+    { label: '☕ Chai Table', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80' },
+    { label: '🌅 Campus Lawn', url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80' },
+    { label: '📚 Study Corner', url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&auto=format&fit=crop&q=80' },
+    { label: '🎸 Jam Area', url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&auto=format&fit=crop&q=80' },
+  ];
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,12 +80,82 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
     }
   };
 
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    isDrawingRef.current = true;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    ctx.beginPath();
+    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0F2C59';
+    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    const canvas = canvasRef.current;
+    if (canvas) {
+      setSketchDataUrl(canvas.toDataURL('image/png'));
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setSketchDataUrl('');
+  };
+
   const handlePostContribution = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newContent.trim() && !photoUrl) return;
+    const hasContent = Boolean(
+      newContent.trim() ||
+      (contributionType === 'photo' && photoUrl) ||
+      (contributionType === 'sketch' && sketchDataUrl) ||
+      (contributionType === 'voice' && voiceRecorded)
+    );
+    if (!hasContent) return;
 
     setSubmitError(null);
     setIsPublishing(true);
+
+    let finalMediaUrl: string | undefined = undefined;
+    if (contributionType === 'photo') {
+      finalMediaUrl = photoUrl || SAMPLE_THREAD_PHOTOS[0].url;
+    } else if (contributionType === 'sketch') {
+      finalMediaUrl = sketchDataUrl || undefined;
+    } else if (contributionType === 'voice') {
+      finalMediaUrl = 'https://cdn.freesound.org/previews/preview.mp3';
+    }
+
+    let finalContent = sanitizeText(newContent);
+    if (!finalContent) {
+      if (contributionType === 'photo') finalContent = 'Photo Perspective';
+      else if (contributionType === 'sketch') finalContent = 'Live hand sketch';
+      else if (contributionType === 'voice') finalContent = `Voice note (${voiceSeconds || 4}s)`;
+      else finalContent = 'Moment perspective';
+    }
 
     try {
       onAddContribution(moment.id, {
@@ -67,8 +163,10 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
         parentId: selectedParentId,
         branchName: branchName.trim() || undefined,
         type: contributionType,
-        content: sanitizeText(newContent) || (photoUrl ? 'Photo Perspective' : ''),
-        mediaUrl: contributionType === 'photo' ? (photoUrl || 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80') : undefined,
+        content: finalContent,
+        mediaUrl: finalMediaUrl,
+        sketchDataUrl: contributionType === 'sketch' ? sketchDataUrl : undefined,
+        voiceDurationSeconds: contributionType === 'voice' ? (voiceSeconds || 4) : undefined,
         author: {
           id: currentUser?.id || 'user-arun',
           name: currentUser?.name || 'Arun K.',
@@ -80,9 +178,13 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
 
       setNewContent('');
       setPhotoUrl('');
+      setSketchDataUrl('');
+      setVoiceRecorded(false);
+      setVoiceSeconds(0);
       setBranchName('');
       setSelectedParentId(null);
       setIsPreviewing(false);
+      sound.playDropAlert();
     } catch {
       setSubmitError('Failed to publish contribution. Tap Retry to post again.');
     } finally {
@@ -179,7 +281,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                       className={`px-2.5 py-1 text-xs font-semibold rounded-lg capitalize transition-all ${
                         contributionType === type
                           ? 'bg-mova-ocean text-white'
-                          : 'bg-white text-mova-ocean border border-mova-ice-border'
+                          : 'bg-white text-mova-ocean border border-mova-ice-border hover:bg-mova-ice-soft'
                       }`}
                     >
                       {type}
@@ -218,24 +320,48 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                   </div>
                   <div className="flex items-center gap-2">
                     <img
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
+                      src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'}
                       alt="You"
                       className="w-5 h-5 rounded-full object-cover"
                     />
-                    <span className="text-xs font-bold text-mova-ocean">You (Arun K.)</span>
+                    <span className="text-xs font-bold text-mova-ocean">{currentUser?.name || 'You (Arun K.)'}</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-mova-ice-soft text-mova-ocean uppercase">
                       {branchName || contributionType}
                     </span>
                   </div>
-                  <p className="text-xs text-mova-nearblack leading-relaxed">
-                    {newContent || '(Empty content)'}
-                  </p>
-                  {photoUrl && (
+                  {newContent && (
+                    <p className="text-xs text-mova-nearblack leading-relaxed">
+                      {newContent}
+                    </p>
+                  )}
+                  {contributionType === 'photo' && photoUrl && (
                     <img
                       src={photoUrl}
                       alt="Preview"
                       className="rounded-xl w-full max-h-40 object-cover border border-mova-ice-border"
                     />
+                  )}
+                  {contributionType === 'sketch' && sketchDataUrl && (
+                    <img
+                      src={sketchDataUrl}
+                      alt="Sketch Preview"
+                      className="rounded-xl w-full max-h-40 object-contain bg-white border border-mova-ice-border"
+                    />
+                  )}
+                  {contributionType === 'voice' && voiceRecorded && (
+                    <div className="p-2.5 rounded-xl bg-mova-ice-soft border border-mova-ice-border flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Mic className="w-4 h-4 text-mova-ocean" />
+                        <span className="text-xs font-bold text-mova-ocean">Voice Note (0:{voiceSeconds < 10 ? '0' : ''}{voiceSeconds}s)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => sound.playJoin()}
+                        className="px-2.5 py-1 rounded-lg bg-mova-ocean text-white text-[10px] font-bold"
+                      >
+                        Play ▶
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -248,6 +374,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                     className="w-full px-3 py-2 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none"
                   />
 
+                  {/* 1. PHOTO INPUT */}
                   {contributionType === 'photo' && (
                     <div className="flex flex-col gap-2">
                       <input
@@ -258,7 +385,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                         onChange={handlePhotoUpload}
                       />
                       {photoUrl ? (
-                        <div className="relative h-28 rounded-xl overflow-hidden border border-mova-ice-border">
+                        <div className="relative h-32 rounded-xl overflow-hidden border border-mova-ice-border">
                           <img src={photoUrl} alt="Upload" className="w-full h-full object-cover" />
                           <button
                             type="button"
@@ -271,21 +398,174 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                       ) : (
                         <div
                           onClick={() => fileInputRef.current?.click()}
-                          className="p-3 rounded-xl border border-dashed border-mova-ice-border bg-white text-center cursor-pointer text-xs font-bold text-mova-ocean hover:bg-mova-ice-soft"
+                          className="p-3.5 rounded-xl border-2 border-dashed border-mova-ice-border bg-white text-center cursor-pointer text-xs font-bold text-mova-ocean hover:bg-mova-ice-soft flex items-center justify-center gap-2"
                         >
-                          + Attach Snapshot from Device
+                          <Camera className="w-4 h-4 text-mova-ocean" />
+                          <span>Attach Photo from Device</span>
                         </div>
                       )}
+
+                      {/* Photo Presets */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-mova-muted">Presets:</span>
+                        {SAMPLE_THREAD_PHOTOS.map((sample) => (
+                          <button
+                            key={sample.label}
+                            type="button"
+                            onClick={() => setPhotoUrl(sample.url)}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all ${
+                              photoUrl === sample.url
+                                ? 'bg-mova-ocean text-white shadow-xs'
+                                : 'bg-white text-mova-ocean border border-mova-ice-border hover:bg-mova-ice'
+                            }`}
+                          >
+                            {sample.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Image URL input */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="Or paste photo URL (https://...)"
+                          value={photoUrl.startsWith('data:') ? '' : photoUrl}
+                          onChange={(e) => setPhotoUrl(e.target.value)}
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-mova-ice-border text-[11px] focus:outline-none focus:ring-1 focus:ring-mova-ocean"
+                        />
+                        {photoUrl && !photoUrl.startsWith('data:') && (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoUrl('')}
+                            className="text-[10px] font-bold text-mova-muted hover:text-red-500"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 
+                  {/* 2. VOICE INPUT */}
+                  {contributionType === 'voice' && (
+                    <div className="p-4 rounded-xl bg-white border border-mova-ice-border flex flex-col items-center gap-3 text-center">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isRecordingVoice) {
+                              setIsRecordingVoice(false);
+                              setVoiceRecorded(true);
+                              sound.playClick();
+                            } else {
+                              setIsRecordingVoice(true);
+                              setVoiceSeconds(0);
+                              setVoiceRecorded(false);
+                              sound.playClick();
+                            }
+                          }}
+                          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-mova-ocean ${
+                            isRecordingVoice
+                              ? 'bg-red-500 text-white animate-pulse shadow-md scale-105'
+                              : 'bg-mova-ocean text-white shadow-sm hover:scale-105'
+                          }`}
+                        >
+                          {isRecordingVoice ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        </button>
+
+                        <div className="text-left">
+                          <span className="text-xs font-bold text-mova-ocean block">
+                            {isRecordingVoice ? 'Recording Voice Memo...' : voiceRecorded ? 'Voice Memo Captured!' : 'Tap Mic to Speak'}
+                          </span>
+                          <span className="text-xs font-mono-tabular text-mova-ocean font-bold">
+                            0:{voiceSeconds < 10 ? '0' : ''}{voiceSeconds}s
+                          </span>
+                        </div>
+
+                        {voiceRecorded && !isRecordingVoice && (
+                          <button
+                            type="button"
+                            onClick={() => sound.playJoin()}
+                            className="ml-auto px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold shadow-xs hover:bg-emerald-700"
+                          >
+                            Preview ▶
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Live Waveform Indicator */}
+                      <div className="flex items-center gap-1 h-5">
+                        {[0.4, 0.8, 0.3, 0.9, 0.6, 0.7, 0.4, 0.8, 0.5, 0.7].map((h, i) => (
+                          <div
+                            key={i}
+                            className={`w-1 rounded-full transition-all duration-150 ${
+                              isRecordingVoice ? 'bg-red-500 animate-pulse' : voiceRecorded ? 'bg-emerald-500' : 'bg-mova-ice'
+                            }`}
+                            style={{
+                              height: isRecordingVoice ? `${Math.max(6, Math.floor(h * 20))}px` : '6px',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. SKETCH PAD INPUT */}
+                  {contributionType === 'sketch' && (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-mova-ocean flex items-center gap-1">
+                          <Edit3 className="w-3.5 h-3.5 text-mova-ocean" />
+                          <span>Draw or Doodle Perspective</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={clearCanvas}
+                          className="text-[10px] font-bold text-mova-muted hover:text-red-500 flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3 h-3" /> Clear
+                        </button>
+                      </div>
+
+                      <div className="relative border-2 border-dashed border-mova-ice-border rounded-xl bg-white overflow-hidden">
+                        <canvas
+                          ref={canvasRef}
+                          width={480}
+                          height={160}
+                          onMouseDown={startDrawing}
+                          onMouseMove={draw}
+                          onMouseUp={stopDrawing}
+                          onMouseLeave={stopDrawing}
+                          onTouchStart={startDrawing}
+                          onTouchMove={draw}
+                          onTouchEnd={stopDrawing}
+                          className="w-full h-36 bg-white cursor-crosshair touch-none"
+                        />
+                        {!sketchDataUrl && (
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-mova-muted font-medium">
+                            Draw a sketch, arrow, or diagram with mouse or touch
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Caption / Text Input */}
                   <textarea
                     rows={2}
-                    placeholder="Share your live view, message, or sound note..."
+                    placeholder={
+                      contributionType === 'photo'
+                        ? 'Add photo caption (optional)...'
+                        : contributionType === 'voice'
+                        ? 'Add note to voice memo (optional)...'
+                        : contributionType === 'sketch'
+                        ? 'Add note about sketch (optional)...'
+                        : 'Share your live view, message, or sound note...'
+                    }
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none"
-                    required={contributionType !== 'photo' || !photoUrl}
+                    required={contributionType === 'text'}
                   />
                 </>
               )}
@@ -294,7 +574,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsPreviewing(!isPreviewing)}
-                  disabled={!newContent && !photoUrl}
+                  disabled={!newContent && !photoUrl && !sketchDataUrl && !voiceRecorded}
                   className="text-xs font-bold text-mova-ocean hover:underline disabled:opacity-40"
                 >
                   {isPreviewing ? 'Exit Preview' : '👁️ Preview Card'}
@@ -307,7 +587,7 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                     type="submit"
                     variant="primary"
                     size="sm"
-                    disabled={isPublishing || (!newContent.trim() && !photoUrl)}
+                    disabled={isPublishing || (!newContent.trim() && !photoUrl && !sketchDataUrl && !voiceRecorded)}
                     className="font-semibold"
                   >
                     {isPublishing ? 'Publishing...' : 'Publish to Branch'}
@@ -390,7 +670,25 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                         {root.content}
                       </p>
 
-                      {root.mediaUrl && (
+                      {root.type === 'voice' && (
+                        <div className="p-2.5 rounded-xl bg-mova-ice-soft border border-mova-ice-border flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Mic className="w-4 h-4 text-mova-ocean" />
+                            <span className="text-xs font-semibold text-mova-ocean">
+                              Voice Note ({root.voiceDurationSeconds || 4}s)
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => sound.playJoin()}
+                            className="px-2.5 py-1 rounded-lg bg-mova-ocean text-white text-[10px] font-bold hover:bg-mova-ocean-hover"
+                          >
+                            Play ▶
+                          </button>
+                        </div>
+                      )}
+
+                      {root.mediaUrl && root.type !== 'voice' && (
                         <img
                           src={root.mediaUrl}
                           alt="Contribution visual"
@@ -456,7 +754,25 @@ export const LivingThreadModal: React.FC<LivingThreadModalProps> = ({
                             {child.content}
                           </p>
 
-                          {child.mediaUrl && (
+                          {child.type === 'voice' && (
+                            <div className="p-2 rounded-xl bg-mova-ice-soft border border-mova-ice-border flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Mic className="w-3.5 h-3.5 text-mova-ocean" />
+                                <span className="text-[11px] font-semibold text-mova-ocean">
+                                  Voice Note ({child.voiceDurationSeconds || 4}s)
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => sound.playJoin()}
+                                className="px-2 py-0.5 rounded-lg bg-mova-ocean text-white text-[10px] font-bold hover:bg-mova-ocean-hover"
+                              >
+                                Play ▶
+                              </button>
+                            </div>
+                          )}
+
+                          {child.mediaUrl && child.type !== 'voice' && (
                             <img
                               src={child.mediaUrl}
                               alt="Child visual"

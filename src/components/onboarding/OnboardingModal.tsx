@@ -259,6 +259,17 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               })}
             </div>
 
+            {/* Custom Location Input */}
+            <div className="mb-6">
+              <input
+                type="text"
+                placeholder="Or type custom campus spot (e.g. Mechanical Block, Hostel 3 Lobby)..."
+                value={chosenArea}
+                onChange={(e) => setChosenArea(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-2xl bg-black/[0.02] border border-black/[0.08] text-xs font-medium focus:outline-none focus:ring-2 focus:ring-mova-maroon"
+              />
+            </div>
+
             <div className="flex items-center justify-between gap-3">
               <button
                 onClick={() => setStep('vibe')}

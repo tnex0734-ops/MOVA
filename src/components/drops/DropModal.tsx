@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Drop } from '../../types/mova';
-import { X, Check, Camera, Upload, Trash2 } from 'lucide-react';
+import { X, Check, Camera, Upload, Trash2, Mic, Square } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatSecondsToTimer } from '../../lib/utils';
 import { sanitizeText } from '../../lib/validation';
 import { Icon3D } from '../common/Icon3D';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { sound } from '../../lib/sound';
 
 interface DropModalProps {
   isOpen: boolean;
@@ -30,7 +31,31 @@ export const DropModal: React.FC<DropModalProps> = ({
   const [content, setContent] = useState('');
   const [photoUrl, setPhotoUrl] = useState<string>(SAMPLE_DROP_PHOTOS[0].url);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const [voiceRecorded, setVoiceRecorded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-stop voice recording after 10 seconds
+  React.useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (isRecordingVoice) {
+      interval = setInterval(() => {
+        setVoiceSeconds((prev) => {
+          if (prev >= 10) {
+            setIsRecordingVoice(false);
+            setVoiceRecorded(true);
+            sound.playClick();
+            return 10;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRecordingVoice]);
 
   const modalRef = useFocusTrap<HTMLDivElement>({
     isOpen,
@@ -288,6 +313,25 @@ export const DropModal: React.FC<DropModalProps> = ({
                     ))}
                   </div>
 
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      placeholder="Or paste photo URL (https://...)"
+                      value={photoUrl.startsWith('data:') ? '' : photoUrl}
+                      onChange={(e) => setPhotoUrl(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-mova-ice-border text-[11px] focus:outline-none focus:ring-1 focus:ring-mova-ocean"
+                    />
+                    {photoUrl && !photoUrl.startsWith('data:') && (
+                      <button
+                        type="button"
+                        onClick={() => setPhotoUrl('')}
+                        className="text-[10px] font-bold text-mova-muted hover:text-red-500"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
                   <input
                     type="text"
                     placeholder="Short caption (e.g. Current view from library stairs)..."
@@ -299,14 +343,72 @@ export const DropModal: React.FC<DropModalProps> = ({
               )}
 
               {type === 'voice' && (
-                <div className="p-6 rounded-2xl bg-mova-ice-soft/40 border-2 border-dashed border-mova-ice-border text-center flex flex-col items-center justify-center">
-                  <Icon3D name="voice" size="xl" className="mb-2" />
-                  <p className="text-xs font-bold text-mova-ocean">
-                    Tap to Record Voice Note
-                  </p>
-                  <p className="text-[11px] text-mova-muted mt-0.5">
-                    10s snippet will be synced into the community drop
-                  </p>
+                <div className="p-6 rounded-2xl bg-mova-ice-soft/40 border border-mova-ice-border text-center flex flex-col items-center justify-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isRecordingVoice) {
+                          setIsRecordingVoice(false);
+                          setVoiceRecorded(true);
+                          sound.playClick();
+                        } else {
+                          setIsRecordingVoice(true);
+                          setVoiceSeconds(0);
+                          setVoiceRecorded(false);
+                          sound.playClick();
+                        }
+                      }}
+                      aria-label={isRecordingVoice ? 'Stop recording voice drop' : 'Start recording voice drop'}
+                      className={`w-14 h-14 rounded-full flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-mova-ocean ${
+                        isRecordingVoice
+                          ? 'bg-red-500 text-white animate-pulse shadow-md scale-105'
+                          : 'bg-mova-ocean text-white shadow-sm hover:scale-105'
+                      }`}
+                    >
+                      {isRecordingVoice ? <Square className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                    </button>
+
+                    <div className="text-left">
+                      <span className="text-xs font-bold text-mova-ocean block">
+                        {isRecordingVoice ? 'Recording 10s Drop...' : voiceRecorded ? 'Voice Drop Captured!' : 'Tap to Record Voice'}
+                      </span>
+                      <span className="text-xs font-mono-tabular text-mova-ocean font-bold">
+                        0:{voiceSeconds < 10 ? '0' : ''}{voiceSeconds}s / 0:10s
+                      </span>
+                    </div>
+
+                    {voiceRecorded && !isRecordingVoice && (
+                      <button
+                        type="button"
+                        onClick={() => sound.playJoin()}
+                        className="px-2.5 py-1 bg-white border border-mova-ice-border rounded-lg text-[11px] font-semibold text-mova-ocean flex items-center gap-1 shadow-xs hover:bg-mova-ice-soft"
+                      >
+                        <span>▶ Preview</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Waveform visualizer */}
+                  <div className="flex items-center gap-1 h-6">
+                    {[35, 75, 20, 95, 55, 85, 40, 100, 30, 80, 50, 70, 25].map((h, i) => (
+                      <div
+                        key={i}
+                        style={{ height: isRecordingVoice ? `${h}%` : '20%' }}
+                        className={`w-1 rounded-full transition-all duration-150 ${
+                          isRecordingVoice ? 'bg-mova-ocean' : 'bg-mova-border'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Add audio note tag (e.g. Birds chirping outside)..."
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-white border border-mova-ice-border text-xs font-medium focus:ring-2 focus:ring-mova-ocean focus:outline-none"
+                  />
                 </div>
               )}
 

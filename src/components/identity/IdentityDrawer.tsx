@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, MapPin, Edit2, Check, User, HeartHandshake, Layers } from 'lucide-react';
+import { X, MapPin, Edit2, Check, User, HeartHandshake, Layers, Camera } from 'lucide-react';
 import { UserProfile } from '../../types/mova';
 import { CANONICAL_VIBES } from '../../data/mockVibes';
 import { Icon3D } from '../common/Icon3D';
@@ -13,6 +13,14 @@ interface IdentityDrawerProps {
   onOpenCustomVibe: () => void;
 }
 
+const PRESET_AVATARS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=120&auto=format&fit=crop&q=80',
+];
+
 export const IdentityDrawer: React.FC<IdentityDrawerProps> = ({
   isOpen,
   onClose,
@@ -24,19 +32,35 @@ export const IdentityDrawer: React.FC<IdentityDrawerProps> = ({
   const [name, setName] = useState(userProfile.name);
   const [bio, setBio] = useState(userProfile.bio);
   const [campusArea, setCampusArea] = useState(userProfile.campusArea);
+  const [avatar, setAvatar] = useState(userProfile.avatar);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(userProfile.name);
     setBio(userProfile.bio);
     setCampusArea(userProfile.campusArea);
-  }, [userProfile.name, userProfile.bio, userProfile.campusArea, isOpen]);
+    setAvatar(userProfile.avatar);
+  }, [userProfile.name, userProfile.bio, userProfile.campusArea, userProfile.avatar, isOpen]);
 
   if (!isOpen) return null;
 
   const currentVibe = CANONICAL_VIBES.find((v) => v.id === userProfile.currentVibeId);
 
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setAvatar(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = () => {
-    onUpdateProfile({ name, bio, campusArea });
+    onUpdateProfile({ name, bio, campusArea, avatar });
     setIsEditing(false);
   };
 
@@ -84,14 +108,32 @@ export const IdentityDrawer: React.FC<IdentityDrawerProps> = ({
           </div>
 
           {/* User Card */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative">
+          <div className="flex items-center gap-4 mb-4">
+            <input
+              type="file"
+              ref={avatarInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+
+            <div className="relative group">
               <img
-                src={userProfile.avatar}
-                alt={userProfile.name}
+                src={avatar}
+                alt={name}
                 className="w-16 h-16 rounded-2xl object-cover ring-2 ring-mova-maroon/20 shadow-sm"
               />
               <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 ring-2 ring-white" title="Active on Campus" />
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  title="Upload profile photo"
+                  className="absolute inset-0 rounded-2xl bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
             <div className="flex-1 min-w-0">
@@ -131,6 +173,43 @@ export const IdentityDrawer: React.FC<IdentityDrawerProps> = ({
               {isEditing ? <Check className="w-4 h-4 text-emerald-600" /> : <Edit2 className="w-4 h-4" />}
             </button>
           </div>
+
+          {/* Avatar Presets & Custom URL when editing */}
+          {isEditing && (
+            <div className="mb-4 p-3 rounded-2xl bg-black/[0.02] border border-black/[0.05] flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-mova-muted uppercase">Select Avatar:</span>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="text-[10px] font-bold text-mova-maroon hover:underline flex items-center gap-1"
+                >
+                  <Camera className="w-3 h-3" /> Upload Picture
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                {PRESET_AVATARS.map((url, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setAvatar(url)}
+                    className={`w-9 h-9 rounded-xl overflow-hidden border-2 transition-transform hover:scale-105 ${
+                      avatar === url ? 'border-mova-maroon ring-2 ring-mova-maroon/20' : 'border-transparent'
+                    }`}
+                  >
+                    <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+              <input
+                type="url"
+                placeholder="Or paste avatar image URL (https://...)"
+                value={avatar.startsWith('data:') ? '' : avatar}
+                onChange={(e) => setAvatar(e.target.value)}
+                className="w-full px-2.5 py-1 text-[11px] rounded-lg border border-black/[0.1] bg-white focus:outline-none focus:ring-1 focus:ring-mova-maroon"
+              />
+            </div>
+          )}
 
           {/* Bio / State */}
           <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/[0.05] mb-6">

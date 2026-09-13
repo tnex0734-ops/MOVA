@@ -7,6 +7,7 @@ import { formatTimeRemaining } from '../../lib/utils';
 import { CANONICAL_VIBES } from '../../data/mockVibes';
 import { Icon3D } from '../common/Icon3D';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { sound } from '../../lib/sound';
 
 interface ConfirmationDrawerProps {
   isOpen: boolean;
@@ -416,6 +417,25 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
                   ))}
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    placeholder="Or paste image URL (https://...)"
+                    value={photoUrl.startsWith('data:') ? '' : photoUrl}
+                    onChange={(e) => setPhotoUrl(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-mova-ice-border text-[11px] focus:outline-none focus:ring-1 focus:ring-mova-ocean"
+                  />
+                  {photoUrl && !photoUrl.startsWith('data:') && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUrl('')}
+                      className="text-[10px] font-bold text-mova-muted hover:text-red-500"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
                 <input
                   type="text"
                   placeholder="Photo caption (e.g. Just sat down at table 4!)..."
@@ -437,10 +457,12 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
                       if (isRecordingVoice) {
                         setIsRecordingVoice(false);
                         setVoiceRecorded(true);
+                        sound.playClick();
                       } else {
                         setIsRecordingVoice(true);
                         setVoiceSeconds(0);
                         setVoiceRecorded(false);
+                        sound.playClick();
                       }
                     }}
                     aria-label={isRecordingVoice ? 'Stop recording voice note' : 'Start recording voice note'}
@@ -458,9 +480,19 @@ export const ConfirmationDrawer: React.FC<ConfirmationDrawerProps> = ({
                       {isRecordingVoice ? 'Recording Voice Memo...' : voiceRecorded ? 'Voice Note Captured!' : 'Tap Mic to Speak'}
                     </span>
                     <span className="text-xs font-mono-tabular text-mova-ocean font-bold">
-                      0:0{voiceSeconds}s
+                      0:{voiceSeconds < 10 ? '0' : ''}{voiceSeconds}s
                     </span>
                   </div>
+
+                  {voiceRecorded && !isRecordingVoice && (
+                    <button
+                      type="button"
+                      onClick={() => sound.playJoin()}
+                      className="px-2.5 py-1 bg-white border border-mova-ice-border rounded-lg text-[11px] font-semibold text-mova-ocean flex items-center gap-1 shadow-xs hover:bg-mova-ice-soft"
+                    >
+                      <span>▶ Preview</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Animated Simulated Waveform */}

@@ -367,6 +367,26 @@ export const SparkModal: React.FC<SparkModalProps> = ({
                 </button>
               ))}
             </div>
+
+            {/* Direct Image URL Input */}
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="url"
+                placeholder="Or paste cover image URL (https://...)"
+                value={photoUrl.startsWith('data:') ? '' : photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-mova-ice-border text-[11px] focus:outline-none focus:ring-1 focus:ring-mova-ocean"
+              />
+              {photoUrl && !photoUrl.startsWith('data:') && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl('')}
+                  className="text-[10px] font-bold text-mova-muted hover:text-red-500"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Vibe Selection */}
