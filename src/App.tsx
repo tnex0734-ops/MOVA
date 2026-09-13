@@ -113,12 +113,19 @@ function MOVAApp() {
   const [activeDropForModal, setActiveDropForModal] = useState<Drop | null>(null);
   const [activeMemoryForModal, setActiveMemoryForModal] = useState<Memory | null>(null);
   const [isKeyboardHelpOpen, setIsKeyboardHelpOpen] = useState<boolean>(false);
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
-    return typeof window !== 'undefined' ? !localStorage.getItem('mova_onboarded') : false;
-  });
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(true);
   const [isIdentityOpen, setIsIdentityOpen] = useState<boolean>(false);
   const [isActivityOpen, setIsActivityOpen] = useState<boolean>(false);
   const [isCustomVibeOpen, setIsCustomVibeOpen] = useState<boolean>(false);
+
+  // Always recognise user as new on open and clear old onboarding flag
+  useEffect(() => {
+    try {
+      localStorage.removeItem('mova_onboarded');
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Toast hook
   const { showToast } = useToast();

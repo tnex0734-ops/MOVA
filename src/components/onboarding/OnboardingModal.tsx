@@ -26,9 +26,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   if (!isOpen) return null;
 
   const handleFinish = () => {
-    localStorage.setItem('mova_onboarded', 'true');
-    localStorage.setItem('mova_default_vibe', chosenVibe);
-    localStorage.setItem('mova_default_area', chosenArea);
+    try {
+      localStorage.removeItem('mova_onboarded');
+    } catch {
+      // ignore
+    }
     onComplete(chosenVibe, chosenArea);
     onClose();
   };
