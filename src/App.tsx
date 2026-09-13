@@ -563,7 +563,7 @@ function MOVAApp() {
       />
 
       {/* 2. Main Content Body with Safe Area Padding */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-3.5 sm:px-8 lg:px-14 py-5 sm:py-8 lg:py-10 pb-[max(2rem,env(safe-area-inset-bottom))]">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-7 pb-[max(2rem,env(safe-area-inset-bottom))]">
         
         {/* ==================== TAB: NOW WORLD ==================== */}
         {activeTab === 'now' && (

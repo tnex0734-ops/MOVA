@@ -172,25 +172,15 @@ export const SparkModal: React.FC<SparkModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-mova-nearblack/50 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-mova-nearblack/50 backdrop-blur-sm animate-fadeIn"
       role="dialog"
       aria-modal="true"
       aria-labelledby="spark-modal-title"
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-xl bg-white rounded-3xl sm:rounded-drawer p-6 sm:p-9 shadow-2xl border border-black/[0.06] overflow-y-auto max-h-[85vh] sm:max-h-[88vh] overscroll-contain"
+        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-black/[0.08] flex flex-col max-h-[92dvh] sm:max-h-[88dvh] overflow-hidden overscroll-contain"
       >
-        
-        {/* Close Button */}
-        <button
-          onClick={handleRequestClose}
-          aria-label="Close spark modal"
-          className="absolute top-6 right-6 w-9 h-9 rounded-full bg-black/[0.03] flex items-center justify-center text-mova-muted hover:text-mova-nearblack hover:bg-black/[0.06] transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
         {/* Unsaved Changes Confirmation Dialog Overlay */}
         {showDiscardConfirm && (
           <div className="absolute inset-0 z-30 bg-white/95 backdrop-blur-sm p-6 sm:p-8 flex flex-col items-center justify-center text-center animate-fadeIn">
@@ -222,28 +212,40 @@ export const SparkModal: React.FC<SparkModalProps> = ({
           </div>
         )}
 
-        {/* Modal Header */}
-        <div className="flex items-center gap-3.5 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-mova-orange-light/80 flex items-center justify-center shadow-xs">
-            <Icon3D name="spark" size="md" />
+        {/* Pinned Modal Header */}
+        <div className="shrink-0 px-5 sm:px-6 py-3.5 sm:py-4 border-b border-black/[0.06] flex items-center justify-between bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-mova-orange-light/80 flex items-center justify-center shadow-xs shrink-0">
+              <Icon3D name="spark" size="sm" />
+            </div>
+            <div>
+              <h2 id="spark-modal-title" className="font-crayon text-xl sm:text-2xl font-bold text-mova-ocean leading-tight">
+                Spark a Moment
+              </h2>
+              <p className="font-crayon text-xs sm:text-sm text-mova-ocean/80 font-semibold">
+                Don't ask who to follow. Start what's happening.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 id="spark-modal-title" className="font-crayon text-2xl sm:text-3xl font-bold text-mova-ocean leading-tight">
-              Spark a Moment
-            </h2>
-            <p className="font-crayon text-sm sm:text-base text-mova-ocean/85 font-semibold">
-              Don't ask who to follow. Start what's happening.
-            </p>
-          </div>
+
+          <button
+            onClick={handleRequestClose}
+            aria-label="Close spark modal"
+            className="w-8 h-8 rounded-full bg-black/[0.03] flex items-center justify-center text-mova-muted hover:text-mova-nearblack hover:bg-black/[0.06] transition-colors shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {error && (
-          <div className="mb-5 p-3.5 rounded-xl bg-red-50 text-red-700 text-xs font-medium border border-red-200">
-            {error}
-          </div>
-        )}
+        {/* Scrollable Form Body */}
+        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 overscroll-contain">
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-xs font-medium border border-red-200">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <form id="spark-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           
           {/* Moment Title */}
           <div>
@@ -491,19 +493,19 @@ export const SparkModal: React.FC<SparkModalProps> = ({
             </div>
           </div>
 
-          {/* Submit Action */}
-          <div className="pt-2 mt-2 border-t border-mova-border flex items-center justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={handleRequestClose}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" size="md" className="font-semibold shadow-md">
-              Launch Moment Now
-            </Button>
-          </div>
-
         </form>
+      </div>
 
+      {/* Pinned Modal Footer */}
+      <div className="shrink-0 px-5 sm:px-6 py-3 border-t border-black/[0.06] bg-white/98 backdrop-blur-sm flex items-center justify-end gap-2.5">
+        <Button type="button" variant="ghost" size="sm" onClick={handleRequestClose}>
+          Cancel
+        </Button>
+        <Button type="submit" form="spark-form" variant="primary" size="md" className="font-semibold shadow-md">
+          Launch Moment Now
+        </Button>
       </div>
     </div>
+  </div>
   );
 };
